@@ -71,6 +71,8 @@ If the evidence lists contracts that are due, spawn the optimize role in mode **
 
 ## 8. Hand-off
 
+In shared scope, add one line per adopted proposal under `## [Unreleased]` in `CHANGELOG.md` (CI requires it), and leave the version alone. Projects receive these changes only when a maintainer releases them, so contract check-after points count from that release; say so in the PR.
+
 Push the branch and open a **draft** PR/MR with the tracker skill's `open_change`: in the project repo for project scope, in the singularity repo for shared scope. Title it "singularity: workflow optimization <date>". Include the dashboard, the adopted and rejected proposals with their numbers, the tier-3 recommendations, and when each contract is due.
 
 Tell the user, briefly:

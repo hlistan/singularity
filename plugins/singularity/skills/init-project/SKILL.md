@@ -16,7 +16,7 @@ Templates are in `${CLAUDE_PLUGIN_ROOT}/templates/`. Create the following in the
    - Leave `roles`, `review`, `stages` empty: they're for overrides only.
    - Leave anything you can't determine as `TODO` and list it for the user.
 2. **Jira only**: if the session has no Atlassian MCP tools, add the server from `mcp/jira.mcp.json` to the project's `.mcp.json` (merge if the file exists), and tell the user each person authenticates once with `/mcp`.
-3. **`.claude/settings.json`**: merge in `extraKnownMarketplaces` and `enabledPlugins` from `project/.claude/settings.json`. The source URL points at the public repository; change it if you use a fork.
+3. **`.claude/settings.json`**: merge in `extraKnownMarketplaces` and `enabledPlugins` from `project/.claude/settings.json`. The source URL points at the public repository; change it if you use a fork. Its `ref: stable` follows releases; to hold the project on one release, set `ref` to that release's tag (for example `singularity--v0.1.0`) only if the user asks.
 4. **`CLAUDE.md`**: if missing, create it from the template. If present, add the two `@` import lines near the top if they aren't there already.
 5. **Experience and evals**: copy `project/.claude/singularity/experience/` and `project/.claude/singularity/evals/` as-is. Both must be committed: they hold the project's shared agent experience and the regression cases the optimizer validates against.
 6. **Optional**, only if the user wants them: the hook scripts in `project/.claude/singularity/hooks/` (make them executable), and the examples `custom-implementer.md.example`, `review-domain.md.example` and `dependency-upgrade.js.example`.

@@ -9,7 +9,7 @@ How the workflow improves itself, and why it is built this way. Based on researc
 | Runs | after every pipeline run, and on human PR/MR reviews | every ~10 runs (`/singularity:optimize`), or on a schedule |
 | Changes | experience lessons, run digests, new regression eval cases | agent definitions, role models and effort, lenses, stages, protocol, learner rules, project agents and skills |
 | Evidence | one run | all runs, all human reviews, eval replays, the optimization archive, a web practice scan |
-| Safeguard | curation rules + PR/MR review | tiers, falsifiable contracts, eval gates with a holdout set, challenger, PR/MR review |
+| Safeguard | curation rules + PR/MR review | tiers, falsifiable contracts, eval gates with a holdout set, challenger, PR/MR review, and for shared changes a human-made release |
 
 The learner keeps experience close to the work: it is ACE's reflector/curator, and ReasoningBank-style learning from both successes and failures. The optimizer changes the harness, and it is built from what the self-improving-agent literature found works and what goes wrong.
 
@@ -71,11 +71,11 @@ Scopes:
 
 - **replay-evals** (project): the project's eval cases, which are real escaped defects and known false positives, each a `change.patch` on a base commit. The reviewer replays them in isolated worktrees for a baseline and a candidate variant, and a judge scores recall and precision, reported separately for holdout cases.
 - **claude plugin eval** (shared): the plugin's own suite under `plugins/singularity/evals/`, run on the candidate branch and on the default branch.
-- **canary**: for changes that can't be replayed (spec, plan or implementer behaviour), ship with recorded baseline metrics and a check-after point. `check-contracts` keeps or reverts the change.
+- **canary**: for changes that can't be replayed (spec, plan or implementer behaviour), ship with recorded baseline metrics and a check-after point. `check-contracts` keeps or reverts the change. For a shared change, the check counts only runs on the release that shipped it (`plugin_version` in the run digests), never `+dev` runs from an unreleased checkout.
 
 ## Running it unattended
 
-`/singularity:optimize unattended` (for example from a weekly scheduled task or CI job running `claude -p`) implements tier 1, plus tier 2 changes whose validation fits the budget, and opens a draft PR/MR. Nothing merges without a human.
+`/singularity:optimize unattended` (for example from a weekly scheduled task or CI job running `claude -p`) implements tier 1, plus tier 2 changes whose validation fits the budget, and opens a draft PR/MR. Nothing merges without a human, and shared changes reach projects only when a human releases a new plugin version: the optimizer adds changelog lines but never changes the version.
 
 ## Sources
 

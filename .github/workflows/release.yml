@@ -1,0 +1,64 @@
+name: Release
+
+# Merging a version bump to main publishes it:
+#   - an annotated tag <plugin>--v<version> (the same tag `claude plugin tag` creates);
+#   - the `stable` branch moved to that commit. Projects add the marketplace at `stable`, so Claude Code
+#     only ever copies released files, and a version always means the same files;
+#   - a GitHub release whose notes are that version's CHANGELOG section.
+# Merges that don't change the version reach nobody. See "Versions and releases" in README.md.
+on:
+  push:
+    branches: [main]
+    paths:
+      - plugins/singularity/.claude-plugin/plugin.json
+  workflow_dispatch: # re-run a release that failed part-way
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check the version and changelog
+        run: node scripts/version.js check
+
+      - name: Tag, move stable and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node scripts/version.js current)
+          tag=$(node scripts/version.js tag)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag is already published; nothing to do."
+            exit 0
+          fi
+          # The release is the commit on main where the version last changed, not whatever main has moved on to.
+          commit=$(git log --first-parent -1 --format=%H -- plugins/singularity/.claude-plugin/plugin.json)
+          node scripts/version.js notes > "$RUNNER_TEMP/notes.md"
+          if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "singularity $version" "$commit"
+            git push origin "refs/tags/$tag"
+          fi
+          git push origin "$commit:refs/heads/stable"
+          gh release create "$tag" --verify-tag --title "singularity $version" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "Published $tag at ${commit:0:12}; stable now points there." >> "$GITHUB_STEP_SUMMARY"

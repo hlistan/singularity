@@ -38,7 +38,7 @@ Keep a **run record** as you go. The learner turns it into the digest the optimi
 
 - for each stage, its duration (`date` before and after) and its tokens if the agent result reports them;
 - the model each role actually ran on;
-- `plugin_rev`: the last path segment of `${CLAUDE_PLUGIN_ROOT}`;
+- `plugin_version`: the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. If `${CLAUDE_PLUGIN_ROOT}` is not inside Claude Code's plugins directory (a path containing `/plugins/cache/` or `/plugins/marketplaces/`), the plugin is a `--plugin-dir` checkout that may hold unreleased changes: append `+dev`;
 - whether the user edited the spec or plan at the gates, and what kind of edit it was;
 - review rounds, and every confirmed and rejected finding (lens, severity, location, one-line problem);
 - whether verification passed first time.

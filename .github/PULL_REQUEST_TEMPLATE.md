@@ -14,7 +14,8 @@
 
 ## Checklist
 
-- [ ] `claude plugin validate .` passes
+- [ ] `claude plugin validate --strict .` passes
 - [ ] `pre-commit run --all-files` passes (includes the sensitive-information check)
+- [ ] Plugin changes have a line under `## [Unreleased]` in `CHANGELOG.md` (**Breaking:** if projects must change something); the version is untouched unless this is a release PR
 - [ ] No credentials, personal data, internal hosts or private repository names
 - [ ] Docs updated where behaviour changed

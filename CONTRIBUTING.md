@@ -15,7 +15,7 @@ git clone https://github.com/hlistan/singularity.git
 cd singularity
 pip install pre-commit && pre-commit install --hook-type pre-commit --hook-type pre-push
 npm install -g @anthropic-ai/claude-code
-claude plugin validate .
+claude plugin validate --strict .
 ```
 
 To try your changes in a project: `claude --plugin-dir /path/to/singularity/plugins/singularity`.
@@ -31,13 +31,19 @@ To try your changes in a project: `claude --plugin-dir /path/to/singularity/plug
 | Regression cases | `plugins/singularity/evals/` | Only add cases; never weaken graders |
 | Per-project templates | `plugins/singularity/templates/project/` | |
 | Design notes | `docs/` | |
+| Release notes | `CHANGELOG.md`, under `## [Unreleased]` | One line per change, written for the people running projects |
 
 ## Before you open a pull request
 
-1. `claude plugin validate .` passes.
-2. `pre-commit run --all-files` passes (lint, shellcheck, markdownlint, gitleaks, sensitive-info check).
+1. `claude plugin validate --strict .` passes.
+2. `pre-commit run --all-files` passes (lint, shellcheck, markdownlint, gitleaks, sensitive-info check, version check).
 3. `node scripts/check-evals.js` passes (CI runs it too).
-4. For agent, skill or workflow changes: run the eval suite once (`plugins/singularity/evals/README.md`) and paste the summary table in the PR. It costs real model calls; use `--case` and `--runs 1` while iterating.
-5. Describe the change as a contract where it affects behaviour: what it should fix, what it might break, how you checked.
+4. If you changed anything under `plugins/singularity/` other than eval cases, add a line under `## [Unreleased]` in `CHANGELOG.md`, starting with **Breaking:** if projects must change something. Leave the version alone: it changes only in release PRs. `node scripts/version.js check --base origin/main` runs the same check as CI.
+5. For agent, skill or workflow changes: run the eval suite once (`plugins/singularity/evals/README.md`) and paste the summary table in the PR. It costs real model calls; use `--case` and `--runs 1` while iterating.
+6. Describe the change as a contract where it affects behaviour: what it should fix, what it might break, how you checked.
 
 Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`…).
+
+## Releasing
+
+Maintainers release by running `node scripts/version.js bump <patch|minor|major>` on a branch and merging the resulting `chore(release): singularity <version>` PR. The Release workflow then tags `singularity--v<version>`, moves the `stable` branch that projects follow, and publishes the GitHub release. Which bump to choose, and what projects see, is in [Versions and releases](README.md#versions-and-releases).

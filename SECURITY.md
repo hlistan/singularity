@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue for security problems. Use GitHub's private vulnerability reporting on this repository (**Security → Report a vulnerability**). You will get an acknowledgement within 7 days. Please include the plugin version or commit, what you observed, and how to reproduce it.
+Please do not open a public issue for security problems. Use GitHub's private vulnerability reporting on this repository (**Security → Report a vulnerability**). You will get an acknowledgement within 7 days. Please include the plugin version (from `claude plugin list`, or the commit for a `--plugin-dir` checkout), what you observed, and how to reproduce it.
 
 ## What this project runs on your machine
 
@@ -13,7 +13,7 @@ Project Singularity is a Claude Code plugin. Installing it is a trust decision, 
 - **Agents** can run commands through Claude Code's normal permission system. The pipelines never commit, push, or open PRs unless the project config or the user says so. Guardrails block force-pushes to protected branches, `--no-verify`, and recursive deletes of `/` or `$HOME`, but a guardrail is a safety net, not a security boundary: Claude Code's permission modes and sandboxing are.
 - **Eval scaffolds** (`plugins/singularity/evals/*/fixture.sh`) run as you, outside the sandbox, and only when you pass `--scaffold`.
 - **Trackers**: the Jira adapter uses an Atlassian MCP server that you authenticate once with `/mcp`; GitHub and GitLab use the `gh`/`glab` CLIs with your own credentials. Nothing in this repository stores tokens.
-- **The optimizer** reads web pages during its practice scan. It treats their content as untrusted data, never follows instructions found in them, and cannot change guardrails, permissions, eval cases or its own definition (tier 3 in `docs/self-optimization.md`). Nothing it produces is merged without a human.
+- **The optimizer** reads web pages during its practice scan. It treats their content as untrusted data, never follows instructions found in them, and cannot change guardrails, permissions, eval cases or its own definition (tier 3 in `docs/self-optimization.md`). Nothing it produces is merged without a human, and nothing reaches projects until a human releases it.
 
 ## What must never be committed
 
@@ -21,4 +21,4 @@ This is a public repository. Keep out of it: credentials and tokens, personal e-
 
 ## Supported versions
 
-The default branch only. There are no releases yet.
+Only the latest release (the newest `singularity--v*` tag, which the `stable` branch points to). Security fixes ship as a new release; while the plugin is 0.x, older releases don't get backports. Changes merged to `main` but not yet released aren't supported versions.

@@ -54,7 +54,7 @@ Use only evidence from the run you were given:
 After a pipeline run, using the run record you were given:
 
 ```json
-{"type":"run","date":"2026-10-13","ticket":"ABC-123","slug":"abc-123-health","pipeline":"feature","plugin_rev":"<rev>",
+{"type":"run","date":"2026-10-13","ticket":"ABC-123","slug":"abc-123-health","pipeline":"feature","plugin_version":"0.1.0",
  "models":{"implement":"sonnet","review":"fable"},
  "stages":{"spec":{"s":95,"tokens":31000},"plan":{"s":140},"implement":{"s":610,"tokens":220000},"review":{"s":300},"verify":{"s":80}},
  "gate_edits":{"spec":false,"plan":true},"gate_edit_kinds":["missing rollback step"],

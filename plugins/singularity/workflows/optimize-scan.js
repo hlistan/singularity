@@ -30,7 +30,7 @@ const streams = [
   {
     key: 'metrics',
     effort: 'medium',
-    prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer): blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, escaped defects per run (human_review lines), rejected-findings rate (reviewer false positives), and median seconds and tokens per stage. Note any change of models or plugin_rev between the windows.`,
+    prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer): blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, escaped defects per run (human_review lines), rejected-findings rate (reviewer false positives), and median seconds and tokens per stage. Note any change of models or plugin_version between the windows (older lines may say plugin_rev; a +dev suffix means an unreleased checkout).`,
     schema: obj({
       runs: num,
       windows: arr(obj({ metric: str, recent: num, previous: num, direction: { type: 'string', enum: ['better', 'worse', 'flat', 'n/a'] }, note: str })),
