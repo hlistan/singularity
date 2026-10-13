@@ -1,0 +1,15 @@
+title = "Project Singularity gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders"
+regexes = [
+  '''\$\{user_config\.[a-z_]+\}''',
+  '''eyJhbGciOiJSUzI1NiJ9''',
+]
+paths = [
+  '''\.gitleaks\.toml''',
+  '''scripts/check-sensitive\.sh''',
+]

@@ -1,0 +1,16 @@
+# Local-only configuration (may name private repositories or hold credentials)
+optimizer/projects.yaml
+optimizer/runs/
+.env
+.env.*
+*.local.json
+.claude/settings.local.json
+.claude/agent-memory-local/
+.mcp.json
+
+# Generated
+plugins/singularity/evals/results/
+plugins/singularity/evals/**/mock-recordings/
+.agentic/
+node_modules/
+.DS_Store

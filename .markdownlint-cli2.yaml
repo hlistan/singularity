@@ -1,0 +1,10 @@
+config:
+  default: true
+  MD013: false        # line length: prose is wrapped by the editor
+  MD033: false        # inline HTML (badges, <br>)
+  MD041: false        # first line heading (frontmatter files)
+  MD024:
+    siblings_only: true
+ignores:
+  - node_modules
+  - plugins/singularity/evals/results

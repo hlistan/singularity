@@ -1,0 +1,22 @@
+name: Workflow improvement
+description: Propose a change to an agent, pipeline, lens, standard or the learning loop
+labels: [enhancement]
+body:
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: What fails today, how often, in which stage. Counts and examples beat opinions.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract
+      description: What it should fix, what it might break, how it can be validated.

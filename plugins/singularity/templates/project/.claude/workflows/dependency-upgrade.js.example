@@ -1,0 +1,29 @@
+// Example of a project-specific workflow built from the shared singularity agents.
+// Rename to dependency-upgrade.js to enable it as /dependency-upgrade. Args: { packages: ["lodash", "axios"] }
+export const meta = {
+  name: 'dependency-upgrade',
+  description: 'Upgrade each listed dependency in its own worktree, fix breakages, verify, and review',
+  phases: [
+    { title: 'Upgrade', detail: 'one implementer per package, isolated worktrees' },
+    { title: 'Verify', detail: 'full verification per package' },
+  ],
+}
+
+const packages = (args && args.packages) || []
+
+const results = await pipeline(
+  packages,
+  pkg =>
+    agent(
+      `Upgrade the dependency "${pkg}" to its latest compatible version, fix any breakage, and update tests. Commit on a branch named deps/${pkg}.`,
+      { agentType: 'singularity:implementer', isolation: 'worktree', label: `upgrade:${pkg}`, phase: 'Upgrade' },
+    ),
+  (_, pkg) =>
+    agent(`Verify branch deps/${pkg}: run the project's full verification and report PASS or FAIL with evidence.`, {
+      agentType: 'singularity:verifier',
+      label: `verify:${pkg}`,
+      phase: 'Verify',
+    }),
+)
+
+return packages.map((pkg, i) => ({ pkg, verification: results[i] }))

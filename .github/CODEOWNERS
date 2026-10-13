@@ -1,0 +1,8 @@
+# Changes to guardrails, evals and the optimizer need a maintainer's review (tier 3 in docs/self-optimization.md).
+*                                           @hlistan
+/plugins/singularity/hooks/                 @hlistan
+/plugins/singularity/scripts/               @hlistan
+/plugins/singularity/evals/                 @hlistan
+/plugins/singularity/agents/optimizer.md    @hlistan
+/.github/                                   @hlistan
+/scripts/                                   @hlistan

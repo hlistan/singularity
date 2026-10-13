@@ -1,0 +1,17 @@
+{
+  "name": "singularity",
+  "displayName": "Project Singularity",
+  "description": "Shared agents, feature workflow, review workflow, guardrail hooks and engineering standards",
+  "author": {
+    "name": "Project Singularity contributors"
+  },
+  "keywords": [
+    "workflow",
+    "agents",
+    "review",
+    "tdd"
+  ],
+  "homepage": "https://github.com/hlistan/singularity",
+  "repository": "https://github.com/hlistan/singularity",
+  "license": "MIT"
+}

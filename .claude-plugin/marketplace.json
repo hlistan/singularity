@@ -1,0 +1,14 @@
+{
+  "name": "singularity",
+  "description": "Project Singularity: shared agents, workflows, guardrails and standards for agentic software delivery with Claude Code",
+  "owner": {
+    "name": "Project Singularity contributors"
+  },
+  "plugins": [
+    {
+      "name": "singularity",
+      "source": "./plugins/singularity",
+      "description": "Spec → plan → implement → review → verify pipeline with shared agents and guardrails"
+    }
+  ]
+}

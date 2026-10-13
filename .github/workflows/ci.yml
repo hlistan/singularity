@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate JSON
+        run: |
+          set -e
+          git ls-files '*.json' | while read -r f; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || { echo "::error file=$f::invalid JSON"; exit 1; }
+          done
+
+      - name: Syntax-check workflow scripts
+        run: |
+          set -e
+          for f in plugins/singularity/workflows/*.js plugins/singularity/templates/project/.claude/workflows/*.js.example; do
+            node -e "new Function('agent','pipeline','parallel','phase','log','args','workflow','budget','return (async()=>{'+require('fs').readFileSync('$f','utf8').replace('export const meta','const meta')+'})()')" \
+              || { echo "::error file=$f::syntax error"; exit 1; }
+          done
+
+      - name: Validate plugin manifests
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate .
+          claude plugin validate ./plugins/singularity
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: warning
+
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: '**/*.md'
+
+      - name: Lint YAML
+        run: pip install --quiet yamllint && yamllint -s .
+
+      - name: Lint GitHub Actions workflows
+        uses: raven-actions/actionlint@v2
+
+  evals-smoke:
+    name: Eval cases load
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check every eval case parses (no model calls)
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          cd plugins/singularity
+          claude plugin eval . --ablation none --runs 1 --max-cost-usd 0 --no-publish --trust-plugin --json out.json
+          node -e "const r=require('./out.json'); if(!r.partial||r.partialReason!=='cost_ceiling'){console.error(r);process.exit(1)}"
