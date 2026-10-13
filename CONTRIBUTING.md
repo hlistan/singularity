@@ -36,7 +36,8 @@ To try your changes in a project: `claude --plugin-dir /path/to/singularity/plug
 
 1. `claude plugin validate .` passes.
 2. `pre-commit run --all-files` passes (lint, shellcheck, markdownlint, gitleaks, sensitive-info check).
-3. For agent, skill or workflow changes: run the eval suite once (`plugins/singularity/evals/README.md`) and paste the summary table in the PR. It costs real model calls; use `--case` and `--runs 1` while iterating.
-4. Describe the change as a contract where it affects behaviour: what it should fix, what it might break, how you checked.
+3. `node scripts/check-evals.js` passes (CI runs it too).
+4. For agent, skill or workflow changes: run the eval suite once (`plugins/singularity/evals/README.md`) and paste the summary table in the PR. It costs real model calls; use `--case` and `--runs 1` while iterating.
+5. Describe the change as a contract where it affects behaviour: what it should fix, what it might break, how you checked.
 
 Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`…).

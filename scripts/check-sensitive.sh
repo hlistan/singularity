@@ -7,7 +7,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 if [ $# -gt 0 ]; then files=("$@"); else mapfile -t files < <(git ls-files); fi
 [ ${#files[@]} -eq 0 ] && exit 0
 
-ALLOWED_EMAILS='noreply@anthropic\.com|@example\.com|@users\.noreply\.github\.com'
+ALLOWED_EMAILS='noreply@anthropic\.com|@example\.com|@users\.noreply\.github\.com|^[0-9]+:git@'
 findings=$(mktemp)
 report() { echo "::error file=$1,line=$2::$3" | tee -a "$findings" >&2; }
 
