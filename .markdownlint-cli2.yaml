@@ -3,6 +3,7 @@ config:
   MD013: false        # line length: prose is wrapped by the editor
   MD033: false        # inline HTML (badges, <br>)
   MD041: false        # first line heading (frontmatter files)
+  MD060: false        # table pipe spacing: cosmetic, 80+ hits in agent and skill tables
   MD024:
     siblings_only: true
 ignores:
