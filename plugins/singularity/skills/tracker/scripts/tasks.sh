@@ -23,10 +23,13 @@
 #   --dir DIR               task directory (default .tasks)
 #   --id-prefix PREFIX      letters in front of new task numbers (default T)
 #   --status STATE=PREFIX   rename a status; STATE is todo, in_progress, in_review, blocked or done
+#   --extra-status PREFIX   another status the project uses (QA, ON_HOLD, ...); repeatable
 #   --now "YYYY-MM-DD HH:MM"  timestamp for comments, instead of the current time
 #
-# STATE arguments accept a logical state (todo, in_progress, ...) or a raw prefix (TODO, PROGRESS, ...).
+# STATE arguments accept a logical state (todo, in_progress, ...) or a status prefix (TODO, PROGRESS, QA, ...).
 # Default prefixes: todo=TODO in_progress=PROGRESS in_review=REVIEW blocked=BLOCKED done=DONE.
+# Extra statuses have no logical state (get prints state= empty); files with undeclared prefixes are
+# ignored, and validate reports them, so a typo such as TOD0 is caught instead of becoming a status.
 # A task's priority is an optional "priority: <number>" line in YAML front matter; lower comes first.
 #
 # Exit codes: 0 ok, 1 validation problems or directory not git-ignored, 2 usage error, 3 not found or empty queue,
@@ -44,6 +47,7 @@ S_IN_PROGRESS="PROGRESS"
 S_IN_REVIEW="REVIEW"
 S_BLOCKED="BLOCKED"
 S_DONE="DONE"
+EXTRA_PREFIXES=""
 STATES="todo in_progress in_review blocked done"
 NO_PRIORITY=1000
 NO_NUMBER=999999999
@@ -64,7 +68,7 @@ die() {
   exit "$code"
 }
 
-usage() { sed -n '8,33p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { awk '/^# Usage:/ { p = 1 } /^# Compatible/ { exit } p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # ---------- statuses ----------
 
@@ -92,7 +96,16 @@ state_of_prefix() {
 all_prefixes() {
   local s out=""
   for s in $STATES; do out="$out $(prefix_of_state "$s")"; done
-  printf '%s' "${out# }"
+  out="$out $EXTRA_PREFIXES"
+  out="${out# }"
+  printf '%s' "${out% }"
+}
+
+# True for the five configured prefixes and the extra statuses.
+is_status() {
+  state_of_prefix "$1" >/dev/null && return 0
+  case " $EXTRA_PREFIXES " in *" $1 "*) return 0 ;; esac
+  return 1
 }
 
 # STATE (logical or raw prefix) -> prefix; exits 2 if unknown.
@@ -101,7 +114,7 @@ resolve_prefix() {
   p="$(prefix_of_state "$1")"
   if [ -n "$p" ]; then
     printf '%s' "$p"
-  elif state_of_prefix "$1" >/dev/null; then
+  elif is_status "$1"; then
     printf '%s' "$1"
   else
     die 2 "unknown state '$1' (use one of: $STATES, or a prefix: $(all_prefixes))"
@@ -122,10 +135,14 @@ set_status() {
   esac
 }
 
+add_extra_status() {
+  [[ $1 =~ $PREFIX_RE ]] || die 2 "extra status '$1' must be upper-case letters, digits or _, starting with a letter"
+  EXTRA_PREFIXES="${EXTRA_PREFIXES:+$EXTRA_PREFIXES }$1"
+}
+
 check_distinct_prefixes() {
-  local seen=" " s p
-  for s in $STATES; do
-    p="$(prefix_of_state "$s")"
+  local seen=" " p
+  for p in $(all_prefixes); do
     case "$seen" in *" $p "*) die 2 "status prefix $p used twice" ;; esac
     seen="$seen$p "
   done
@@ -162,7 +179,7 @@ each_named() {
 each_task() {
   local st id slug path
   each_named | while IFS="$TAB" read -r st id slug path; do
-    if state_of_prefix "$st" >/dev/null; then
+    if is_status "$st"; then
       printf '%s\t%s\t%s\t%s\n' "$st" "$id" "$slug" "$path"
     fi
   done
@@ -359,11 +376,11 @@ cmd_validate() {
     [ -f "$f" ] || continue
     base="${f##*/}"
     if parse_name "$base"; then
-      if ! state_of_prefix "$P_STATUS" >/dev/null; then
-        printf 'tasks: %s: unknown status %s (expected one of: %s)\n' "$base" "$P_STATUS" "$(all_prefixes)" >&2
+      if ! is_status "$P_STATUS"; then
+        printf 'tasks: %s: unknown status %s (expected one of: %s; declare other statuses in tracker.files.extra_statuses)\n' "$base" "$P_STATUS" "$(all_prefixes)" >&2
         problems=$((problems + 1))
       fi
-    elif state_of_prefix "${base%%-*}" >/dev/null; then
+    elif is_status "${base%%-*}"; then
       printf 'tasks: %s: expected STATUS-ID-slug, e.g. %s-T1-short-name.md\n' "$base" "$S_TODO" >&2
       problems=$((problems + 1))
     fi
@@ -387,6 +404,7 @@ while [ $# -gt 0 ]; do
     --dir) need_value "$@"; DIR="$2"; shift 2 ;;
     --id-prefix) need_value "$@"; ID_PREFIX="$2"; shift 2 ;;
     --status) need_value "$@"; set_status "$2"; shift 2 ;;
+    --extra-status) need_value "$@"; add_extra_status "$2"; shift 2 ;;
     --now) need_value "$@"; NOW="$2"; shift 2 ;;
     -h | --help) usage; exit 0 ;;
     --) shift; break ;;

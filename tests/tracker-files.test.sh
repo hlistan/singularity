@@ -340,6 +340,63 @@ expect_code 0
 expect_line "id=T1"
 teardown
 
+# ---------- custom statuses ----------
+test_case "--extra-status adds statuses that list, get and move understand"
+setup
+task QA-T4-check-export.md
+task ON_HOLD-T5-waiting-on-vendor
+task TODO-T6-next-up.md
+run --extra-status QA --extra-status ON_HOLD list
+expect_code 0
+expect_out "QA${TAB}T4${TAB}check-export${TAB}.tasks/QA-T4-check-export.md
+ON_HOLD${TAB}T5${TAB}waiting-on-vendor${TAB}.tasks/ON_HOLD-T5-waiting-on-vendor
+TODO${TAB}T6${TAB}next-up${TAB}.tasks/TODO-T6-next-up.md"
+run --extra-status QA list QA
+expect_out "QA${TAB}T4${TAB}check-export${TAB}.tasks/QA-T4-check-export.md"
+run --extra-status QA get T4
+expect_line "status=QA"
+expect_line "state="
+run --extra-status QA move T6 QA
+expect_out ".tasks/QA-T6-next-up.md"
+run --extra-status QA move T6 "done" --from QA
+expect_out ".tasks/DONE-T6-next-up.md"
+teardown
+
+test_case "next ignores tasks in custom statuses"
+setup
+task QA-T1-a.md
+task TODO-T2-b.md
+run --extra-status QA next
+expect_line "id=T2"
+expect_line "remaining=0"
+teardown
+
+test_case "undeclared statuses are ignored by list and flagged by validate with a hint"
+setup
+task QA-T4-check-export.md
+run list
+expect_code 0
+expect_out ""
+run validate
+expect_code 1
+expect_err "unknown status QA"
+expect_err "extra_statuses"
+run --extra-status QA validate
+expect_code 0
+teardown
+
+test_case "invalid, clashing or repeated custom statuses are usage errors"
+setup
+run --extra-status qa list
+expect_code 2
+run --extra-status TODO list
+expect_code 2
+expect_err "used twice"
+run --extra-status QA --extra-status QA list
+expect_code 2
+expect_err "used twice"
+teardown
+
 # ---------- validate ----------
 test_case "validate passes a clean, git-ignored directory"
 setup

@@ -34,6 +34,7 @@ tracker:
   #   dir: .tasks           # must be git-ignored
   #   id_prefix: T
   #   statuses: { in_review: PROGRESS }   # optional; defaults TODO PROGRESS REVIEW BLOCKED DONE
+  #   extra_statuses: [QA, ON_HOLD]       # optional; any other statuses the team uses
   states:                   # logical state -> Jira status, or label for GitHub/GitLab (files use their own statuses)
     in_progress: "In Progress"
     in_review: "In Review"
