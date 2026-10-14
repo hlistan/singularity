@@ -46,4 +46,4 @@ Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`…).
 
 ## Releasing
 
-Maintainers release by running `node scripts/version.js bump <patch|minor|major>` on a branch and merging the resulting `chore(release): singularity <version>` PR. The Release workflow then tags `singularity--v<version>`, moves the `stable` branch that projects follow, and publishes the GitHub release. Which bump to choose, and what projects see, is in [Versions and releases](README.md#versions-and-releases).
+Maintainers release with `scripts/release.sh <patch|minor|major>` from an up-to-date `main`. It bumps the version on a release branch, opens and merges the `chore(release): singularity <version>` PR, and follows the Release workflow, which tags `singularity--v<version>`, moves the `stable` branch that projects follow, and publishes the GitHub release. Which bump to choose, and what projects see, is in [Versions and releases](README.md#versions-and-releases).

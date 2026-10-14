@@ -39,9 +39,9 @@ Pipelines refer to **roles**, not agent names. Each role has a shared default, a
 |---|---|---|---|
 | spec | `singularity:spec-writer` | opus · high | ambiguity costs the most when caught late |
 | plan | `singularity:planner` | opus · high | a precise plan lets a fast model implement it |
-| implement | `singularity:implementer` | **sonnet · medium** | fast; targeted tests during steps, full suite once at the end |
-| review | `singularity:reviewer` | **fable · high** | strongest model, read-only, fresh context, four lenses (correctness, security, maintainability, testability), findings challenged |
-| verify | `singularity:verifier` | sonnet · low | runs commands, reports evidence |
+| implement | `singularity:implementer` | **sonnet · medium**, fix rounds high | fast; targeted tests during steps, full suite once at the end. Fix rounds escalate to high: re-running a failure at higher effort costs less than raising the baseline |
+| review | `singularity:reviewer` | **fable · high** | read-only, fresh context, four lenses (correctness, security, maintainability, testability), findings challenged. Opus 5.5 · high is the first trial to replay |
+| verify | `singularity:verifier` | sonnet · medium | runs every check and maps acceptance criteria to tests; lower effort makes fewer tool calls |
 | learn | `singularity:learner` | opus · high | curation decides whether experience helps or hurts |
 | optimize | `singularity:optimizer` | **fable · xhigh** | rare, high-leverage changes to the workflow itself |
 
@@ -50,10 +50,12 @@ The defaults live in one place: the frontmatter of `plugins/singularity/agents/*
 ```yaml
 roles:
   implement: { agent: android-implementer }      # project agent in .claude/agents/
-  review:    { model: opus, effort: xhigh }      # e.g. if Fable isn't enabled for the org
+  review:    { model: opus, effort: high }       # e.g. if Fable isn't enabled for the org
 ```
 
-If an organization's model allowlist blocks a model, Claude Code falls back to the session model. Per-call `effort` overrides need Claude Code v2.1.292 or later.
+The evidence behind each default, and how to choose model and effort for a project's own agents, is in [docs/models-and-effort.md](docs/models-and-effort.md).
+
+If an organization's model allowlist blocks a model, Claude Code falls back to the newest allowed version of the same family, or else to the session model. On Amazon Bedrock, Google Cloud and Microsoft Foundry some aliases resolve to older models (for example `sonnet` to Sonnet 4.5); check with `/model`. Per-call `effort` overrides need Claude Code v2.1.292 or later.
 
 ## Trackers
 
@@ -71,7 +73,7 @@ Tracker and code host are set independently, so Jira with GitLab MRs works. Logi
 
 | Need | Where (in the project repo) |
 |---|---|
-| Swap an agent for a role | `.claude/agents/<name>.md` + `roles.<role>.agent` |
+| Swap an agent for a role | `.claude/agents/<name>.md` + `roles.<role>.agent`; pick its model and effort with [docs/models-and-effort.md](docs/models-and-effort.md#choosing-model-and-effort-for-a-custom-agent) |
 | Extra review dimensions | `review.extra_lenses` (text) or `review.extra_reviewers` (project agents) |
 | Extra pipeline steps | `stages.after_plan / after_implement / before_handoff` |
 | Project workflows | `.claude/workflows/*.js`, using shared agents via `agentType: 'singularity:…'` (example in templates) |
@@ -127,7 +129,7 @@ plugins/singularity/
   templates/       project files for init-project, Jira MCP config
 optimizer/projects.example.yaml   template for the (git-ignored) list of projects the shared optimizer learns from
 docs/                     design notes, adopted role prompts and where each clause lives
-scripts/                  version.js (versions and releases), check-evals.js, check-sensitive.sh
+scripts/                  release.sh and version.js (versions and releases), check-evals.js, check-sensitive.sh
 CHANGELOG.md              what changed in each release
 ```
 
@@ -160,9 +162,42 @@ While the version is 0.x the interface isn't stable yet: a breaking change bumps
 
 ### Release
 
-1. On a branch, run `node scripts/version.js bump minor` (or `patch`, `major`). It moves the `[Unreleased]` lines into a dated release section and sets the version in `plugin.json`.
-2. Open a PR titled `chore(release): singularity <version>` and merge it.
-3. The [Release workflow](.github/workflows/release.yml) tags the commit `singularity--v<version>` (the tag `claude plugin tag` creates), moves `stable` to it, and publishes a GitHub release with that version's changelog section.
+Releases are published by GitHub, in [hlistan/singularity](https://github.com/hlistan/singularity), never pushed from a local checkout. A release is a pull request to `main` that changes the version, and merging it starts the [Release workflow](https://github.com/hlistan/singularity/actions/workflows/release.yml), which:
+
+- creates the [tag](https://github.com/hlistan/singularity/tags) `singularity--v<version>`, the same tag `claude plugin tag` creates;
+- moves the [`stable`](https://github.com/hlistan/singularity/tree/stable) branch to the tagged commit;
+- publishes a [GitHub release](https://github.com/hlistan/singularity/releases) whose notes are that version's changelog section.
+
+Run one command from an up-to-date `main`:
+
+```bash
+scripts/release.sh minor
+```
+
+The level is `patch`, `minor` or `major`, chosen with the [table above](#what-the-version-means), or an explicit `X.Y.Z`. `--dry-run` checks everything and shows the plan, then stops; it changes nothing except fast-forwarding `main` if GitHub's is ahead. `--yes` skips the confirmation, and `--date YYYY-MM-DD` sets the changelog date (default: today, UTC). The script needs `git`, Node.js, and `gh` signed in to github.com with write access to the repository.
+
+It stops at the first problem, and does this:
+
+1. **Checks** the GitHub repository named by `repository` in `plugin.json`, and the git remote that points at it, whatever it's called (https or ssh). Then it checks that:
+   - you have write access to the repository;
+   - you're on `main` with no uncommitted changes, at the same commit as GitHub (it fast-forwards if GitHub is ahead, and refuses if you have commits GitHub doesn't);
+   - the last CI run on that commit passed, and `node scripts/version.js check` passes;
+   - something is waiting under `## [Unreleased]`;
+   - **Breaking:** lines aren't being released as a patch, or as a minor from 1.0 on;
+   - the release branch and tag don't exist yet.
+2. **Shows the plan** (versions, tag, release notes) and asks you to confirm.
+3. **Bumps the version** on `release/<version>` with `node scripts/version.js bump`, checks that only `CHANGELOG.md` and `plugin.json` changed, commits `chore(release): singularity <version>` and pushes the branch.
+4. **Opens the release pull request**, with the release notes as its description, and waits for its checks.
+5. **Squash-merges it.** If `main` needs an approving review, it turns on auto-merge, or asks you to merge on GitHub, and waits until the pull request is merged.
+6. **Follows the Release workflow** run for the merge commit until it finishes.
+7. **Checks the result:** the GitHub release is published, and the tag and `stable` point at the same commit.
+8. **Updates your `main`**, fetches the tag, and deletes the release branch locally and on GitHub.
+
+If a step fails, the script says where the release stopped and the exact commands to continue or undo it. A Release workflow that failed part-way can be re-run once the cause is fixed on `main`; it skips whatever is already done:
+
+```bash
+gh workflow run release.yml --repo hlistan/singularity --ref main
+```
 
 Projects with auto-update on, which the `init-project` template sets, download the release in their next session and load it on `/reload-plugins` or the following start. Others run `claude plugin update singularity@singularity`. `claude plugin list` shows the installed version, and each run digest records it as `plugin_version` (`+dev` for a `--plugin-dir` checkout), so the optimizer compares releases rather than commits.
 

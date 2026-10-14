@@ -3,7 +3,7 @@ name: verifier
 description: Runs the project's full verification (build, lint, typecheck, tests) and checks every acceptance criterion has a passing test. Reports evidence, changes nothing. Role "verify" in the singularity pipeline.
 tools: Read, Grep, Glob, Bash
 model: sonnet
-effort: low
+effort: medium
 skills:
   - singularity:engineering-standards
 color: cyan
