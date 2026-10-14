@@ -95,6 +95,13 @@ jobs:
           else
             bash tests/init-gitignore.test.sh
           fi
+      - name: Run the guideline check tests
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            /bin/bash tests/check-guidelines.test.sh
+          else
+            bash tests/check-guidelines.test.sh
+          fi
 
   version:
     name: Version and changelog

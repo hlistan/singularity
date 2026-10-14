@@ -1,6 +1,6 @@
 export const meta = {
   name: 'optimize-scan',
-  description: 'Internal, run by the singularity optimizer agent. Gathers the evidence pack for an optimization: metric trends, failure taxonomy, human corrections, experience health, a context audit, due contracts, eval coverage and an optional practice scan',
+  description: 'Internal, run by the singularity optimizer agent. Gathers the evidence pack for an optimization: quality and flow metrics, failure taxonomy, value against the project goals, human corrections, a guideline audit, a context audit, due contracts, eval coverage and an optional practice scan',
   whenToUse: 'First stage of an optimization by the singularity optimizer agent (singularity:optimizer), when it runs as the session',
   phases: [{ title: 'Evidence', detail: 'one independent analyst per evidence stream' }],
 }
@@ -18,7 +18,8 @@ const today = A.today || 'unknown (use the latest date in the data)'
 const common = `Sources:
 ${where}
 Today: ${today}. ${A.focus ? `Focus: ${A.focus}.` : ''}
-runs.jsonl holds one JSON object per line: "type":"run" lines (pipeline runs) and "type":"human_review" lines (escaped defects found by human reviewers).
+runs.jsonl holds one JSON object per line: "type":"run" lines (pipeline runs, with the guidelines each run added, changed or removed), "type":"human_review" lines (escaped defects found by human reviewers) and "type":"curation" lines (guidelines the optimizer wrote). A finding's "guideline" is the one written for it; "covered_by" is an existing guideline that should have prevented it.
+The agents follow guidelines: .claude/singularity/guidelines/*.md and the path-scoped rules in .claude/rules/singularity/, in each source's repository. The experience dir is the record, which the agents don't read.
 Read only: change nothing, and run nothing but read-only commands such as git log. Cite refs (ticket, slug or date) for every claim. If a source has no data for your stream, say so instead of guessing.`
 
 const str = { type: 'string' }
@@ -31,11 +32,15 @@ const streams = [
   {
     key: 'metrics',
     effort: 'medium',
-    prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer): blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, escaped defects per run (human_review lines), rejected-findings rate (reviewer false positives), and median seconds and tokens per stage. Note any change of models or plugin_version between the windows (older lines may say plugin_rev; a +dev suffix means an unreleased checkout).`,
+    prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer).
+Quality: blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, escaped defects per run (human_review lines), rejected-findings rate (reviewer false positives), and the share of runs whose change a later run had to fix ("fixes" in later run lines: the pipeline's change-failure rate).
+Flow: median lead time (lead_s), flow efficiency (active_s divided by lead_s: the share of the lead time spent working rather than waiting), median wait at each gate (gate_wait_s), median time from PR/MR to merge where human_review lines allow it, fix rounds per run, runs that stopped early and why ("stopped"), and median seconds and tokens per stage, with each stage's share of the total.
+Note any change of models or plugin_version between the windows (older lines may say plugin_rev; a +dev suffix means an unreleased checkout).`,
     schema: obj({
       runs: num,
       windows: arr(obj({ metric: str, recent: num, previous: num, direction: { type: 'string', enum: ['better', 'worse', 'flat', 'n/a'] }, note: str })),
-      stages: arr(obj({ stage: str, medianSeconds: num, medianTokens: num })),
+      stages: arr(obj({ stage: str, medianSeconds: num, medianTokens: num, shareOfTime: num })),
+      stopped: arr(obj({ reason: str, count: num })),
       notes: str,
     }),
   },
@@ -43,15 +48,28 @@ const streams = [
     key: 'failures',
     effort: 'high',
     prompt: `Build a failure taxonomy (error analysis). Sources: the "findings" in run lines and "escaped" in human_review lines of runs.jsonl, plus review.md and human-review.md files under the work dirs if present.
-First note each failure in a sentence (open coding), then group them into categories (axial coding) and count them. For each category give: the stage at fault (spec | plan | implement | review | verify | protocol | tooling | config), severity mix, example refs, whether a lesson in the experience files already covers it, whether it recurred AFTER that lesson was added (lesson not working), and whether an eval case exists for it in the evals dir.
-Also say where the fix belongs: "project" (this project's config, context, lessons or agents), "plugin" (the shared singularity plugin: an agent, skill, workflow, standard, template or default that would cause the same failure in any project; name the file), or "unclear".${A.pluginRoot ? ` The shared plugin is at ${A.pluginRoot}.` : ''}`,
+First note each failure in a sentence (open coding), then group them into categories (axial coding) and count them. For each category give: the stage at fault (spec | plan | implement | review | verify | protocol | tooling | config), severity mix, example refs, whether a guideline already covers it (quote its id), whether the category recurred AFTER that guideline was added or last changed (from the "guidelines" fields, and "guideline" and "covered_by" on findings and escaped defects: the guideline isn't working), and whether an eval case exists for it in the evals dir.
+Also say where the fix belongs: "project" (this project's config, context, guidelines or agents), "plugin" (the shared singularity plugin: an agent, skill, workflow, standard, template or default that would cause the same failure in any project; name the file), or "unclear".${A.pluginRoot ? ` The shared plugin is at ${A.pluginRoot}.` : ''}`,
     schema: obj({
       categories: arr(obj({
         name: str, count: num, escaped: num, stageAtFault: str, severities: str, examples: arr(str),
-        coveredByLesson: bool, recurredAfterLesson: bool, hasEvalCase: bool,
+        coveredByGuideline: str, recurredAfterGuideline: bool, hasEvalCase: bool,
         fixBelongs: { type: 'string', enum: ['project', 'plugin', 'unclear'] }, component: str,
       })),
       notes: str,
+    }),
+  },
+  {
+    key: 'value',
+    effort: 'high',
+    prompt: `Judge whether the delivery serves what the project is for. Read .claude/singularity/goals.md in each source's repository (users, value, goals now, trade-offs, constraints); if it is missing or still has its template TODOs, say so and report only the work mix. From run lines ("goal", "kind", "ticket") and the specs in the work dirs, report: how the runs split across the goals, defects, refactoring and maintenance (flow distribution); goals with no work in the period; work that serves no goal; and, using the failure categories and the "path" of the findings and escaped defects, where quality problems hit what users rely on most. Say whether the effort matches the goals and the trade-off order, with refs.`,
+    schema: obj({
+      goalsStatus: { type: 'string', enum: ['confirmed', 'todo', 'missing'] },
+      distribution: arr(obj({ bucket: str, runs: num, share: num })),
+      idleGoals: arr(str),
+      noGoal: arr(str),
+      userImpact: arr(obj({ area: str, goal: str, problem: str, refs: arr(str) })),
+      fit: str,
     }),
   },
   {
@@ -61,23 +79,26 @@ Also say where the fix belongs: "project" (this project's config, context, lesso
     schema: obj({ kinds: arr(obj({ role: str, kind: str, count: num, examples: arr(str) })), notes: str }),
   },
   {
-    key: 'experience',
+    key: 'guidelines',
     effort: 'medium',
-    prompt: `Audit the experience files (project.md, spec.md, plan.md, implement.md, review.md, verify.md, upstream.md). Report per file: the number of lessons (a lesson wrapped over several lines counts once); vague or non-actionable lessons; duplicates and contradictions; lessons with Seen 1 not reinforced for 60+ days; lessons ready to promote (Seen >= 3); upstream candidates. Quote the lesson ids.`,
+    prompt: `Audit the guidelines as guidance: the guideline files and rules, and upstream.md in the experience dir. Report per file: the number of guidelines (one wrapped over several lines counts once) against the limit (learning.max_lines_per_file, default 60; 40 for project.md); guidelines that read as history rather than the current right way (what went wrong, when, tickets, counts; upstream.md is exempt, since its evidence is meant to be there); vague or non-actionable ones; duplicates and contradictions, within and across files; guidelines in always-loaded files (project.md, CLAUDE.md, rules without paths) that only matter for one part of the code and belong in a path-scoped rule; guidelines that a lint rule, type, test, hook or config setting could enforce instead; upstream candidates with evidence from at least two runs. Quote the guideline ids. Also collect "proposals", "proposed_checks" and "full" from recent run lines, each with how many runs raised it and their refs. If the experience dir still holds lesson files from before 0.5.0 (project.md or a role's file), or CLAUDE.md imports experience/project.md, set oldLessonFiles.`,
     schema: obj({
-      files: arr(obj({ file: str, lessons: num, vague: arr(str), duplicates: arr(str), contradictions: arr(str), stale: arr(str), promote: arr(str) })),
+      files: arr(obj({ file: str, guidelines: num, limit: num, history: arr(str), vague: arr(str), duplicates: arr(str), contradictions: arr(str), scopeToRule: arr(str), enforceable: arr(str) })),
       upstream: arr(str),
+      proposedChecks: arr(str),
+      proposals: arr(obj({ proposal: str, runs: num, refs: arr(str) })),
+      oldLessonFiles: bool,
       notes: str,
     }),
   },
   {
     key: 'context',
     effort: 'medium',
-    prompt: `Audit the project context the agents work from against the repository as it is now. Read CLAUDE.md, .claude/singularity.md and the experience files. Report: template TODOs still in CLAUDE.md or the config; statements in CLAUDE.md that the code contradicts; lessons that cite files, commands, modules or names that no longer exist (check each with Glob or Grep); commands in the config that no longer match the package scripts, Makefile or CI config; areas of the code with commits in the last 90 days that no context or lesson mentions (git log --since). Quote lesson ids. Don't run the project's commands.`,
+    prompt: `Audit the project context the agents work from against the repository as it is now. Read CLAUDE.md, .claude/singularity.md, the guideline files and the rules.${A.pluginRoot ? ` Run bash "${A.pluginRoot}/scripts/check-guidelines.sh" in each source's repository: it lists paths that guidelines cite but that don't exist, rule paths that match nothing, and leftover lesson-log wording.` : ''} Report: template TODOs still in CLAUDE.md or the config; statements in CLAUDE.md or guidelines that the code contradicts; guidelines that cite files, commands, modules or names that don't exist (check what the script can't, such as symbols and commands, with Glob or Grep); commands in the config that don't match the package scripts, Makefile or CI config; areas of the code with commits in the last 90 days that no guideline or rule covers (git log --since). Quote guideline ids. Don't run the project's commands.`,
     schema: obj({
       todos: arr(str),
       contradicted: arr(obj({ file: str, statement: str, evidence: str })),
-      stale: arr(obj({ file: str, lesson: str, reason: str })),
+      stale: arr(obj({ file: str, guideline: str, reason: str })),
       commands: arr(obj({ name: str, configured: str, found: str })),
       uncovered: arr(str),
       notes: str,

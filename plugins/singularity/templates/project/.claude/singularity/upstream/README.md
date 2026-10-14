@@ -5,8 +5,8 @@ proposed fix, for the singularity maintainers to adopt. The singularity
 optimizer writes them; the team reviews them in the optimizer's PR/MR, and
 files the ones it approves as issues in the singularity repository.
 
-Lessons the learner thinks apply to every project collect first in
-`../experience/upstream.md`. The optimizer turns the ones with enough
+Guidelines the optimizer thinks would be right in every project collect
+first in `../experience/upstream.md`. The optimizer turns the ones with enough
 evidence into reports here.
 
 Reports are written to be published, every section of them. They leave

@@ -17,6 +17,8 @@ The pipeline is the same for a feature, a defect report, a QA issue or a refacto
 
 The project config `.claude/singularity.md` is normally in your context through CLAUDE.md; if not, read it. If it doesn't exist, stop and tell the user to run `/singularity:init-project`.
 
+**Lesson files from before 0.5.0.** If `learning.dir` (default `.claude/singularity/experience/`) still holds `project.md` or another role's lesson file, or `CLAUDE.md` still imports `experience/project.md`, the project keeps the old lesson log, which the roles no longer read. Migrate it before anything else: spawn the **optimize** role with `migrate, in this checkout, for /singularity:feature`, which turns the lessons into guidelines here, uncommitted, so they become part of this run's change. Tell the user first and, unless the run is unattended, let them choose between migrating now and stopping; a run without the migration would work without the project's guidance. Note the migration in `summary.md`.
+
 **Role bindings.** For each role, use `roles.<role>.agent` from the config, or the default:
 
 | role | default agent |
@@ -26,12 +28,13 @@ The project config `.claude/singularity.md` is normally in your context through 
 | implement | singularity:implementer |
 | review | singularity:reviewer |
 | verify | singularity:verifier |
-| learn | singularity:learner |
 | optimize | singularity:optimizer |
+
+The pipeline's learn step (step 7) is the optimize role's **learn** job: the same agent, at its own model and effort. A `roles.learn.agent` in the config no longer applies: tell the user once, and use the optimize role's agent.
 
 When spawning a role's agent, pass `model` and `effort` **only** if the config sets them for that role. Otherwise leave them out, so the shared defaults in the agent definitions apply.
 
-One exception: **fix rounds** of the implement role (blocking review findings in step 4, verification failures in step 5) pass `effort: high`, unless the config sets `roles.implement.effort`. Re-running a failure at higher effort costs less than raising the effort of every first attempt.
+Two exceptions. The **learn** job passes `model` and `effort` from `roles.learn`, each one that the config sets, and otherwise `model: opus` and `effort: high`: it runs after every run, and curation needs a strong model but not the optimizer's deep budget. **Fix rounds** of the implement role (blocking review findings in step 4, verification failures in step 5) pass `effort: high`, unless the config sets `roles.implement.effort`. Re-running a failure at higher effort costs less than raising the effort of every first attempt.
 
 **Unattended runs.** A scheduled or headless run, where nobody can answer a question, is unattended. `no-gates` only skips the two approval gates; on its own it doesn't make a run unattended.
 
@@ -45,13 +48,16 @@ One exception: **fix rounds** of the implement role (blocking review findings in
 - A ticket that is `done`: tell the user and stop, unless they ask to reopen it.
 - If `tracker.type` is `none` or the request is plain text, use the text as the ticket.
 
-**Work dir.** The `<slug>` is the ticket ID in lower case, a hyphen, and a short kebab-case name (for task files, the task's own slug), for example `t7-fix-login`; a plain-text request gets just the name. Create `<work_dir>/<slug>/` (default `.agentic/work`). With the files tracker, `comment(ticket, "Started: <work dir path>")`. Note the start time with `date -u +%FT%TZ`.
+**Work dir.** The `<slug>` is the ticket ID in lower case, a hyphen, and a short kebab-case name (for task files, the task's own slug), for example `t7-fix-login`; a plain-text request gets just the name. Create `<work_dir>/<slug>/` (default `.agentic/work`). With the files tracker, `comment(ticket, "Started: <work dir path>")`. Note the start time with `date -u +%FT%TZ`, and record it in the run record as `started`.
 
-Keep a **run record** in `<work_dir>/<slug>/run.json`, and write it after every stage and gate, so a run that crashes can be resumed and still learned from. The learner turns it into the digest the optimizer works from, so record facts, not impressions:
+Keep a **run record** in `<work_dir>/<slug>/run.json`, and write it after every stage and gate, so a run that crashes can be resumed and still learned from. The learn job turns it into the digest that optimizations work from, so record facts, not impressions:
 
-- each stage as it finishes (`spec`, `plan`, `implement`, `review`, `verify`, `handoff`, `learn`), and each gate the user approves;
-- the branch, and the PR/MR once one is opened, so that the human review can be learned from later;
-- for each stage, its duration (`date` before and after) and its tokens if the agent result reports them;
+- each stage as it finishes (`spec`, `plan`, `implement`, `review`, `verify`, `handoff`, `learn`), and each gate the user approves, with the time it was shown and the time it was approved, so that waiting shows up next to working;
+- the kind of work (feature, defect or refactoring), and the goal in `.claude/singularity/goals.md` the spec says it serves;
+- if the run stops early, why;
+- the branch and its base commit (the branch point), and the PR/MR once one is opened, so that the run's change and its human review can be learned from later;
+- for each stage, its duration (`date` before and after) and its tokens if the agent result reports them, project stages included, and the time of the hand-off;
+- the number of implement fix rounds, whatever asked for them;
 - the model each role actually ran on;
 - `plugin_version`: the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. If `${CLAUDE_PLUGIN_ROOT}` is not inside Claude Code's plugins directory (a path containing `/plugins/cache/` or `/plugins/marketplaces/`), the plugin is a `--plugin-dir` checkout that may hold unreleased changes: append `+dev`;
 - whether the user edited the spec or plan at the gates, and what kind of edit it was;
@@ -62,12 +68,12 @@ Keep a **run record** in `<work_dir>/<slug>/run.json`, and write it after every 
 
 - Read its `run.json` and continue from the first stage not marked done. Without a `run.json` (a run from before 0.4.0), infer the stage from the files: no `spec.md` → step 1; no `plan.md` → step 2; unchecked steps in `plan.md` → step 3, with only those steps; no `review.md` → step 4; no `summary.md` → step 5.
 - Tell the user which stage you are resuming from. A gate that `run.json` doesn't record as approved is shown again before going past it.
-- Keep the existing `spec.draft.md` and `plan.draft.md`: the learner compares them with the final versions.
+- Keep the existing `spec.draft.md` and `plan.draft.md`: the learn job compares them with the final versions.
 
 ## 1. Spec (gate)
 
 Spawn the **spec** role with the ticket text and output path `spec.md`. Copy the result to `spec.draft.md`.
-Show the user the acceptance criteria and open questions, then **stop for approval**. Apply their answers to `spec.md`.
+Show the user the goal the spec names, the acceptance criteria and the open questions, then **stop for approval**. Apply their answers to `spec.md`.
 
 ## 2. Plan (gate)
 
@@ -101,11 +107,11 @@ If there are **blocking** findings, spawn **implement** as a fix round with only
 Spawn the **verify** role with the spec path; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop early (below).
 Then run the `stages.before_handoff` agents.
 
-**Stopping early.** When the pipeline stops on remaining blockers or failed verification, `move(ticket, blocked)` and `comment` with the reason and the path to the work dir, then report to the user.
+**Stopping early.** When the pipeline stops on remaining blockers or failed verification, `move(ticket, blocked)` and `comment` with the reason and the path to the work dir, then run step 7 (learn), so the stop and its reason reach the record, and report to the user.
 
 ## 6. Hand-off
 
-Write `summary.md`: what changed, verification evidence, open non-blocking findings, follow-ups.
+Write `summary.md`: what changed, verification evidence, open non-blocking findings, follow-ups. Then run step 7 (learn) before anything is committed, so that its guideline, record and eval-case changes go into the same commit and PR/MR as the code.
 
 - Commit only if `conventions.auto_commit` is true, using the project's commit convention.
 - Open a draft PR/MR (tracker skill `open_change`, then `link`) only if `conventions.auto_pr` is true or the user asks. Then `move(ticket, in_review)` and `comment` with the link, and record the PR/MR in `run.json`.
@@ -113,24 +119,24 @@ Write `summary.md`: what changed, verification evidence, open non-blocking findi
 
 ## 7. Learn
 
-Skip this step if `learning.enabled` is false. Otherwise spawn the **learn** role once, with:
+Skip this step if `learning.enabled` is false. Otherwise spawn the **optimize** role once, with the job `learn` (model and effort as in step 0), and:
 
 - this run: the work dir path and its `run.json`. For a run resumed from before 0.4.0, which has no `run.json`, rebuild the record from the files: the spec and plan drafts against the final versions, the rounds in `review.md` with their confirmed and rejected findings, and the verifier's result in `summary.md`;
 - the **human reviews** of earlier runs that have finished since they were last learned from (see **Learning from human reviews** below).
 
-It updates the project's experience files and eval cases. Tell the user which lessons it added or changed. They are part of the diff, so the team reviews them in the PR/MR like code.
+It updates the project's guidelines (correcting or removing those this run's change made wrong), the run record and the eval cases. Tell the user which guidelines it added, changed or removed, and any checks or other changes it proposes for the next optimization. They are part of the diff, so the team reviews them in the PR/MR like code.
 
 ## 8. Optimization check
 
 Skip this step if `optimization.every_runs` is 0. Otherwise check whether the **optimize** role is due:
 
-- **onboarding**, if `optimizations.md` has no onboarding entry (`O-…-onboard`);
+- **onboarding**, if `optimizations.md` has no onboarding entry (`O-…-onboard`), or **confirming the goals**, if `goals.md` doesn't say `Status: confirmed`;
 - **an optimization**, if `runs.jsonl` has at least `optimization.every_runs` (default 10) `"type":"run"` lines dated after the last entry in `optimizations.md`;
 - **upstream reports to file**, if `.claude/singularity/upstream/` on the default branch holds reports whose status is still `draft`: the team has approved them by merging.
 
-If one is due, say so in your report. Unless the run is unattended, offer to start it now. On yes, spawn the optimize role with `onboard`, `optimize` or `file upstream reports`. Whenever it returns a **Decision needed** block, show it to the user and start the role again with their answer, until it reports that it's done.
+If one is due, say so in your report. Unless the run is unattended, offer to start it now. On yes, spawn the optimize role with `onboard`, `confirm goals`, `optimize` or `file upstream reports`. Whenever it returns a **Decision needed** block, show it to the user and start the role again with their answer, until it reports that it's done.
 
-Finish with a short report to the user: result, verification, open findings, lessons learned, and the PR/MR link if one was opened.
+Finish with a short report to the user: result, verification, open findings, guidelines changed, and the PR/MR link if one was opened.
 
 ## Learning from human reviews
 
@@ -140,4 +146,4 @@ What human reviewers catch that the agents missed is the most valuable signal th
 2. **Skip what was learned elsewhere.** Another branch may already have learned from a change and not be merged yet. Skip a change whose ref is in a `human_review` line on any branch: `git grep -l '"ref":"<ref>"' $(git for-each-ref --format='%(refname)' refs/heads refs/remotes) -- <learning.dir>/runs.jsonl`.
 3. **Collect the comments.** For each, `review_comments(change)`, and save them to `<work_dir>/<slug>/human-review.md` (create the directory if it's gone), with file:line, the point made, and the commit each comment was made on. Leave out reviewer names.
 4. **Fetch the reviewed code.** A merged branch is often deleted, and after a merge the reviewed commits are already on the default branch, so get them from the PR/MR itself: `git fetch origin pull/<n>/head` on GitHub, `git fetch origin merge-requests/<iid>/head` on GitLab. The **base** of the change is the merge base of the reviewed commit with the PR/MR's base commit from `find_change`, not with the default branch as it is now (`git merge-base <base commit> <reviewed commit>`).
-5. **Hand them to the learner** in step 7, with each change's ref, its run's `slug`, the base and the reviewed commits. Ask it to decide which comments are real defects the agents missed (escaped defects), to record lessons, to append one `human_review` line per change with that `slug` and ref, and to create a regression eval case for each escaped defect. A change with no review comments still gets its `human_review` line, with an empty `escaped` list.
+5. **Hand them to the learn job** in step 7, with each change's ref, its run's `slug`, the base and the reviewed commits, and when it was opened and merged or closed. Ask it to decide which comments are real defects the agents missed (escaped defects), to update the guidelines, to append one `human_review` line per change with that `slug` and ref, and to create a regression eval case for each escaped defect. A change with no review comments still gets its `human_review` line, with an empty `escaped` list.

@@ -9,7 +9,7 @@ effort: medium
 
 You implement approved plans in this Android codebase. Follow the singularity
 `engineering-standards` skill, and read
-`.claude/singularity/experience/implement.md` first.
+`.claude/singularity/guidelines/implement.md` first.
 
 Project specifics:
 

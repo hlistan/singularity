@@ -13,7 +13,7 @@ A failure belongs upstream when the same fix would be right in any project:
 - a template, or the onboarding, leaves a gap that every project has to fill;
 - a bug in a workflow, script or hook;
 - a Claude Code feature or model that the plugin should use, from the practice scan;
-- a lesson in `experience/upstream.md` that isn't specific to this project and has been seen at least twice;
+- a candidate in `experience/upstream.md` that isn't specific to this project, with evidence from at least two runs;
 - a problem the user reports with singularity itself. Their account is evidence; find the cause in the plugin's files before you write.
 
 If the fix would be right only for this project's stack or domain, it is a project change (`optimize.md`), not a report.
@@ -22,7 +22,7 @@ If the fix would be right only for this project's stack or domain, it is a proje
 
 1. Find the cause in the plugin's files under `<plugin root>`, at the installed version (`version` in `<plugin root>/.claude-plugin/plugin.json`), and quote the lines.
 2. Check that it isn't known already: read the reports in `.claude/singularity/upstream/`, and, if the plugin's repository (`repository` in `plugin.json`) is on GitHub and `gh` is signed in, search its issues, read-only: `gh issue list --repo <owner/repo> --state all --search "<keywords>"`. If it is known, add your evidence to the existing report, or tell the user which issue to add it to.
-3. Decide whether the project needs a **local workaround** until a release fixes it: the smallest project change that helps, such as a lesson in a role's experience file, a lens or a role override. It is an ordinary proposal with its own contract, marked as the report's workaround.
+3. Decide whether the project needs a **local workaround** until a release fixes it: the smallest project change that helps, such as a guideline in a role's file, a lens or a role override. It is an ordinary proposal with its own contract, marked as the report's workaround.
 
 ## The report
 
@@ -44,11 +44,11 @@ The singularity repository is public, and a report has to be safe to paste there
 - evidence as counts and categories ("4 of 23 runs; category 'missing authz check'; 2 escaped to human review"), not run refs;
 - no secrets, personal or customer data.
 
-These rules cover the whole report, its Workaround section included: describe the workaround in general terms ("a project lesson tells the reviewer to skip generated files"). The refs behind each number stay in the project: in `proposals.md` in the run directory, and in the PR/MR description.
+These rules cover the whole report, its Workaround section included: describe the workaround in general terms ("a project guideline tells the reviewer to skip generated files"). The refs behind each number stay in the project: in `proposals.md` in the run directory, and in the PR/MR description.
 
 ## Deliver and file
 
-- Reports are tier 1. A new report has status `draft`; it is committed on the optimizer's branch, and the team reviews it in the PR/MR with everything else. Before that, the challenger (`singularity:reviewer`, Task C) checks each one: is the cause really in the plugin, would the fix hold for projects unlike this one, is there a smaller fix, and is the report free of anything that identifies the project?
+- Reports are tier 1. A new report has status `draft`. One written in an optimization is committed on the optimizer's branch, and the team reviews it in the PR/MR with everything else; a single report the user asked for is written in their checkout, uncommitted, for them to review and commit. Before that, the challenger (`singularity:reviewer`, Task C) checks each one: is the cause really in the plugin, would the fix hold for projects unlike this one, is there a smaller fix, and is the report free of anything that identifies the project?
 - **Approved** means the team merged it: a `draft` report on the default branch is approved and waiting to be filed. A user who wants to file a report before the merge can say so explicitly.
 - **Filing.** For each approved report, offer to file it as an issue in the plugin's repository. Show the exact title and body first, and file only on the user's explicit yes, because the issue is public and leaves the project: `gh issue create --repo <owner/repo> --title "[upstream] <title>" --body-file <report>`. Then set the report's status to `filed <issue URL>`, in your worktree, so the change goes through the next PR/MR. Without `gh`, or for a repository on another host, give the user the file to send to the maintainers.
 - Unattended: never file, and leave reports at `draft`.

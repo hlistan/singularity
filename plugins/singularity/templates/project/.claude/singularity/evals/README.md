@@ -1,6 +1,6 @@
 # Project eval cases
 
-Regression cases built from **real** failures on this project. The learner
+Regression cases built from **real** failures on this project. The optimizer
 creates them from escaped defects: what human reviewers caught in a PR/MR
 that the agents missed. The optimizer replays them to prove that a change to
 the workflow helps and breaks nothing (`replay-evals` workflow).

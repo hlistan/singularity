@@ -1,16 +1,18 @@
 # TODO: project name
 
 @.claude/singularity.md
-@.claude/singularity/experience/project.md
+@.claude/singularity/guidelines/project.md
 
 ## What this project is
 
-TODO: one paragraph on its purpose, its users and its main components.
+TODO: one or two sentences on what it is for and who uses it. The goals
+the team works towards are in `.claude/singularity/goals.md`.
 
 ## Architecture
 
-TODO: the main modules and how they talk to each other, where the business
-logic lives, and the external services it depends on.
+TODO: only what the code doesn't make obvious, such as where the business
+rules live or which service owns which data. Agents read the code
+themselves, so don't describe the directory layout.
 
 ## Conventions specific to this project
 

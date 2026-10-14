@@ -30,7 +30,7 @@ Every adapter implements the same operations, so pipelines only ever ask for the
 | `link(ticket, url)` | Associate a branch, PR or MR with the ticket |
 | `create(title, body, type)` | Create a follow-up ticket. Only when the user asks |
 | `open_change(branch, title, body)` | Open a PR/MR on the code host as a draft, referencing the ticket |
-| `find_change(branch)` | Find the PR/MR for a branch: its number, URL, state (`open`, `merged` or `closed`), base commit and head commit. None if there isn't one |
+| `find_change(branch)` | Find the PR/MR for a branch: its number, URL, state (`open`, `merged` or `closed`), base commit and head commit, and when it was opened and merged or closed. None if there isn't one |
 | `list_changes(state, limit)` | The latest PRs/MRs in a state (`merged`, say), each with its number, URL, branch, base commit and head commit |
 | `review_comments(change)` | Fetch human review comments on a PR/MR, with the commit each was made on (the feature pipeline learns from them) |
 

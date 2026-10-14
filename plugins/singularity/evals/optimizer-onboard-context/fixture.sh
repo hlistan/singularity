@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # A small service right after /singularity:init-project: config and CLAUDE.md still hold the template TODOs,
-# the experience files are empty. src/gen/ is generated code that agents must not edit.
+# the guideline files are empty. src/gen/ is generated code that agents must not edit.
 set -e
 git init -q -b main .
 git config user.email eval@example.com
 git config user.name eval
-mkdir -p src/gen test db/migrations .claude/singularity/experience .claude/singularity/evals .claude/singularity/upstream
+mkdir -p src/gen test db/migrations .claude/singularity/guidelines .claude/singularity/experience .claude/singularity/evals .claude/singularity/upstream
 cat > package.json <<'EOF'
 {
   "name": "pastry-orders",
@@ -73,21 +73,38 @@ cat > CLAUDE.md <<'EOF'
 # TODO: project name
 
 @.claude/singularity.md
-@.claude/singularity/experience/project.md
+@.claude/singularity/guidelines/project.md
 
 ## What this project is
 
-TODO: one paragraph on its purpose, its users and its main components.
+TODO: one or two sentences on what it is for and who uses it.
 
 ## Architecture
 
-TODO: the main modules and how they talk to each other.
+TODO: only what the code doesn't make obvious.
 EOF
-for f in project spec plan implement review verify upstream optimizations; do
-  printf '# %s\n\nMaintained by the singularity learner.\n' "$f" > ".claude/singularity/experience/$f.md"
+for f in project spec plan implement review verify; do
+  printf '# %s guidelines\n\nMaintained by the singularity optimizer.\n' "$f" > ".claude/singularity/guidelines/$f.md"
+done
+for f in upstream optimizations; do
+  printf '# %s\n\nWritten by the singularity learning loop.\n' "$f" > ".claude/singularity/experience/$f.md"
 done
 : > .claude/singularity/experience/runs.jsonl
+cat > .claude/singularity/goals.md <<'EOF'
+# Project goals
+
+Status: draft
+
+## Users and the value they get
+
+TODO: who uses the project, and what it does for them.
+
+## Goals now
+
+TODO: what the team is working towards, and how it knows.
+EOF
 printf '# Project eval cases\n' > .claude/singularity/evals/README.md
 printf '# Upstream reports\n' > .claude/singularity/upstream/README.md
 printf '.agentic/\n' > .gitignore
-git add -A && git commit -q -m "chore: set up singularity"
+# The product code is committed; the singularity setup isn't yet, as right after init-project.
+git add package.json README.md src test db .gitignore && git commit -q -m "feat: order totals"
