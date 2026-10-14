@@ -58,7 +58,7 @@ Follow each proposal's validation plan:
   - Run two variants, `baseline` (the current config) and `candidate` (the proposed config). Give **both** their full lens list and reviewer binding, so the only difference between them is the proposed change.
   - Report non-holdout and holdout results separately.
 - **Shared plugin changes** (agents, skills, workflows in the singularity repo): run the plugin's eval suite on the candidate branch and on the default branch, then compare case by case. Use a worktree for the default branch: `git worktree add <run dir>/baseline <default>`.
-  - Command: `claude plugin eval <plugin dir> --scaffold --trust-plugin --allow-tools "Bash(git *)" "Bash(gh *)" "Bash(glab *)" --json <run dir>/eval-<arm>.json --no-publish --max-cost-usd <budget>`.
+  - Command: `claude plugin eval <plugin dir> --scaffold --trust-plugin --allow-tools "Bash(git *)" "Bash(gh *)" "Bash(glab *)" "Bash(bash *)" --json <run dir>/eval-<arm>.json --no-publish --max-cost-usd <budget>`.
   - `--trust-plugin` is acceptable because this is the team's own suite.
   - Tell the user the estimated cost before running, unless the run is unattended.
 - **Not replayable** (spec, plan or implementer prompts, the implementer's model): ship it as a **canary**. Record the current baseline metrics and the check-after point.

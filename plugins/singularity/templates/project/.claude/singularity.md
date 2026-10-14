@@ -26,18 +26,22 @@ conventions:
   breaking_changes: forbidden   # allowed = no backward compatibility required when a refactor improves the codebase (contracts still tested)
 
 tracker:
-  type: none                # jira | github | gitlab | none
+  type: none                # jira | github | gitlab | files | none
   # jira:   { site: yourco.atlassian.net, project: ABC }
   # github: { repo: org/repo }
   # gitlab: { host: gitlab.com, project: group/repo }
-  states:                   # logical state -> Jira status, or label for GitHub/GitLab
+  # files:                  # local task files named STATUS-ID-slug, e.g. TODO-T7-fix-login.md
+  #   dir: .tasks           # must be git-ignored
+  #   id_prefix: T
+  #   statuses: { in_review: PROGRESS }   # optional; defaults TODO PROGRESS REVIEW BLOCKED DONE
+  states:                   # logical state -> Jira status, or label for GitHub/GitLab (files use their own statuses)
     in_progress: "In Progress"
     in_review: "In Review"
     done: "Done"
   updates: true             # false = read tickets but never comment or move them
 
 code_host:
-  type: github              # github | gitlab
+  type: github              # github | gitlab | none
   # gitlab: { host: gitlab.com, project: group/repo }
 
 # Rebind a role to another agent, or change its model/effort. Omit to keep the shared default.

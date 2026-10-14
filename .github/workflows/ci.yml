@@ -67,6 +67,24 @@ jobs:
       - name: Validate eval suite structure (no model calls)
         run: node scripts/check-evals.js
 
+  tracker-files:
+    name: Task tracker script
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the task-file script tests (bash 5 on Linux, /bin/bash 3.2 on macOS)
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            /bin/bash --version | head -n 1
+            /bin/bash tests/tracker-files.test.sh
+          else
+            bash tests/tracker-files.test.sh
+          fi
+
   version:
     name: Version and changelog
     runs-on: ubuntu-latest
