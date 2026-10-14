@@ -59,15 +59,18 @@ If an organization's model allowlist blocks a model, Claude Code falls back to t
 
 ## Trackers
 
-One `tracker` skill exposes the same operations everywhere (`get`, `comment`, `move`, `link`, `open_change`, `review_comments`) and loads only the adapter the project uses:
+One `tracker` skill exposes the same operations everywhere (`get`, `next`, `comment`, `move`, `link`, `open_change`, `review_comments`) and loads only the adapter the project uses:
 
 | Project config | Adapter | Access |
 |---|---|---|
 | `tracker.type: jira` | `skills/tracker/jira.md` | Atlassian MCP server (`templates/mcp/jira.mcp.json`) |
 | `tracker.type` / `code_host.type: github` | `skills/tracker/github.md` | `gh` CLI |
 | `tracker.type` / `code_host.type: gitlab` | `skills/tracker/gitlab.md` | `glab` CLI |
+| `tracker.type: files` | `skills/tracker/files.md` | Task files in a git-ignored folder, through `skills/tracker/scripts/tasks.sh` |
 
 Tracker and code host are set independently, so Jira with GitLab MRs works. Logical states map to Jira statuses or to labels via `tracker.states`.
+
+**Task files.** With `tracker.type: files`, each task is a file in a git-ignored folder (default `.tasks/`), and its status is the file name prefix: `TODO-T7-fix-login.md`, `PROGRESS-T3-add-search.md`, `DONE-T1-setup-ci.md`. The statuses are `TODO`, `PROGRESS`, `REVIEW`, `BLOCKED` and `DONE`. A project can rename them, and add any others it needs, such as `QA` or `ON_HOLD`, with `tracker.files.extra_statuses`. `/singularity:feature next` takes the first `TODO` task (lowest `priority` in its front matter, then lowest ID) and claims it by renaming it to `PROGRESS`. The rename is atomic, so two sessions never take the same task. At hand-off the task moves to `REVIEW`, and to `DONE` when you confirm.
 
 ## Project customisation
 

@@ -1,7 +1,7 @@
 ---
 name: feature
 description: Run the team's end-to-end pipeline for a ticket (spec, plan, implement, review, verify, learn) with human approval gates. Use only when the user runs /singularity:feature or explicitly asks for the singularity pipeline.
-argument-hint: <ticket id, URL or description> [no-gates]
+argument-hint: <ticket id, URL or description | next> [no-gates]
 disable-model-invocation: true
 ---
 
@@ -32,7 +32,11 @@ When spawning a role's agent, pass `model` and `effort` **only** if the config s
 
 One exception: **fix rounds** of the implement role (blocking review findings in step 4, verification failures in step 5) pass `effort: high`, unless the config sets `roles.implement.effort`. Re-running a failure at higher effort costs less than raising the effort of every first attempt.
 
-**Ticket.** Use the singularity `tracker` skill: `get(ticket)`, then `move(ticket, in_progress)`. If `tracker.type` is `none` or the request is plain text, use the text as the ticket.
+**Ticket.** Use the singularity `tracker` skill:
+
+- If the request is `next` (or empty), `next()` picks the ticket. Trackers without a queue don't support it: ask the user which ticket to take.
+- Then `get(ticket)` and `move(ticket, in_progress)`. For the files tracker this move is a claim. If another session took the task first, run `next()` again (when the request was `next`) or tell the user (when they named the task).
+- If `tracker.type` is `none` or the request is plain text, use the text as the ticket.
 
 **Work dir.** Pick a kebab-case `<slug>` that includes the ticket ID if there is one. Create `<work_dir>/<slug>/` (default `.agentic/work`). Note the start time with `date -u +%FT%TZ`.
 
@@ -71,12 +75,14 @@ If workflows are unavailable, spawn the **review** role once per lens and each e
 
 Write `review.md`: confirmed findings deduplicated and sorted by severity, then the rejected ones with the reason. Rejected findings are a learning signal, so keep them.
 
-If there are **blocking** findings, spawn **implement** as a fix round with only those findings, then re-review only the lenses that raised them. At most 2 rounds; if blockers remain after that, stop and report to the user.
+If there are **blocking** findings, spawn **implement** as a fix round with only those findings, then re-review only the lenses that raised them. At most 2 rounds; if blockers remain after that, stop early (below).
 
 ## 5. Verify
 
-Spawn the **verify** role; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop and report.
+Spawn the **verify** role; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop early (below).
 Then run each agent in `stages.before_handoff`.
+
+**Stopping early.** When the pipeline stops on remaining blockers or failed verification, `move(ticket, blocked)` and `comment` with the reason and the path to the work dir, then report to the user.
 
 ## 6. Hand-off
 
@@ -84,6 +90,7 @@ Write `summary.md`: what changed, verification evidence, open non-blocking findi
 
 - Commit only if `conventions.auto_commit` is true, using the project's commit convention.
 - Open a draft PR/MR (tracker skill `open_change`, then `link`) only if `conventions.auto_pr` is true or the user asks. Then `move(ticket, in_review)` and `comment` with the link.
+- With the files tracker and no PR/MR, `move(ticket, in_review)` and `comment` with the path to `summary.md` (and the commit, if you committed). Task files have no merge event to close them: ask the user whether to `move(ticket, done)`. In unattended runs, leave the task in review.
 
 ## 7. Learn
 

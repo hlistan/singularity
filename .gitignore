@@ -12,5 +12,6 @@ optimizer/runs/
 plugins/singularity/evals/results/
 plugins/singularity/evals/**/mock-recordings/
 .agentic/
+.tasks/
 node_modules/
 .DS_Store

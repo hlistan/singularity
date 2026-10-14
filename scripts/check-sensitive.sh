@@ -15,7 +15,7 @@ for f in "${files[@]}"; do
   [ -f "$f" ] || continue
   case "$f" in .git/*|*.png|*.jpg|*.gif|*.ico|*.woff*) continue;; esac
   case "$f" in
-    optimizer/projects.yaml|.env|.env.*|.mcp.json|.claude/settings.local.json)
+    optimizer/projects.yaml|.env|.env.*|.mcp.json|.claude/settings.local.json|.tasks/*)
       report "$f" 1 "local-only file must not be committed"; continue;;
   esac
   # credentials and private keys
