@@ -6,6 +6,19 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+### Fixed
+
+- Files tracker: the documented `statuses: { in_review: PROGRESS }` was rejected with "status prefix PROGRESS used twice", so a project that copied it had no working tracker. States other than `todo` can now share a prefix; moving a task to a state that shares its current prefix keeps the file name. `todo` still needs a prefix of its own, because claiming a task relies on renaming it out of the queue. The tests now run every `statuses` and `extra_statuses` example in the docs.
+- Files tracker: an empty `--from` value matched as a status, so the move went ahead unchecked.
+- `/singularity:init-project` checks that the files the team shares (`CLAUDE.md`, `.claude/singularity.md`, `.claude/settings.json`, experience, evals, project agents) aren't git-ignored. When `.claude` is ignored, it proposes the `.gitignore` exceptions in `templates/project/gitignore-claude.txt`, which keep personal files such as `settings.local.json` local.
+- Template Markdown passes markdownlint's default rules, including the 80-column line length, so projects that lint Markdown still pass after setup. The learner and optimizer wrap what they write to experience files and eval cases at 80 columns, and a wrapped lesson counts once toward `learning.max_lines_per_file`, so a project's lesson capacity doesn't change.
+
+### Added
+
+- Resuming: `/singularity:feature <ticket>` on a ticket already in progress, blocked or in review asks whether to resume it, then continues in its existing work dir from the first unfinished stage. `next` never resumes. The run record is now written to `run.json` in the work dir after every stage and gate, so a crashed run can be resumed and still learned from.
+- `tasks.sh move --from` accepts several states (`--from in_progress,blocked,in_review`), so a resume is still a checked move rather than a hand rename.
+- README: how to switch a running session to a new release (`/plugin marketplace update singularity`, then `/reload-plugins`).
+
 ## [0.3.0] - 2026-10-14
 
 ### Added

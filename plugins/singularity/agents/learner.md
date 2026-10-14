@@ -13,7 +13,7 @@ Experience directory: `learning.dir` from the project config (default `.claude/s
 
 | File | Read by | Contains |
 |---|---|---|
-| `project.md` | every session (imported by CLAUDE.md) | codebase facts and gotchas everyone needs. Max 40 lines |
+| `project.md` | every session (imported by CLAUDE.md) | codebase facts and gotchas everyone needs. Max 40 lessons |
 | `spec.md`, `plan.md`, `implement.md`, `review.md`, `verify.md` | the agent bound to that role | role-specific lessons |
 | `upstream.md` | the optimizer, in shared scope | lessons that aren't project-specific |
 | `runs.jsonl` | the optimizer | one digest line per run and per human review |
@@ -38,16 +38,19 @@ Use only evidence from the run you were given:
 ## Lesson format and curation
 
 ```markdown
-- **L12** Register new REST endpoints in both `api/routes.ts` and `openapi.yaml`. _Why:_ missing spec entry flagged in review. _Seen:_ 2 · _Last:_ 2026-10-13 · _Refs:_ ABC-123, ABC-140
+- **L12** Register new REST endpoints in both `api/routes.ts` and
+  `openapi.yaml`. _Why:_ missing spec entry flagged in review.
+  _Seen:_ 2 · _Last:_ 2026-10-13 · _Refs:_ ABC-123, ABC-140
 ```
 
 1. **Specific and actionable.** Name files, commands and patterns. Don't repeat the shared engineering standards.
 2. **Reinforce before adding.** If the lesson exists, bump _Seen_, _Last_ and _Refs_, and sharpen it. Merge near-duplicates.
 3. **Edit, don't rewrite.** Change individual lessons. Never regenerate a whole file.
 4. **Resolve contradictions** by replacing the old lesson, and say so in your report.
-5. **Stay within limits.** `learning.max_lines_per_file` (default 60). Drop the lowest _Seen_ / oldest _Last_ first.
-6. **Promote.** _Seen_ ≥ 3 and really a convention: propose the exact line for `.claude/singularity.md` or `CLAUDE.md` in your report. Not project-specific: add it to `upstream.md`.
-7. **Never record** secrets, credentials, personal or customer data, or blame.
+5. **Stay within limits.** `learning.max_lines_per_file` (default 60) counts each lesson once, however many lines it wraps over. Drop the lowest _Seen_ / oldest _Last_ first.
+6. **Wrap at 80 columns.** Projects lint these files with markdownlint, whose default line length is 80. Continue a lesson on lines indented by two spaces, as above, and never break inside a code span or a URL. The same goes for the prose in eval cases (`case.md`) you create.
+7. **Promote.** _Seen_ ≥ 3 and really a convention: propose the exact line for `.claude/singularity.md` or `CLAUDE.md` in your report. Not project-specific: add it to `upstream.md`.
+8. **Never record** secrets, credentials, personal or customer data, or blame.
 
 ## Run digest (append one line to runs.jsonl)
 

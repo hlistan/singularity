@@ -14,7 +14,7 @@ To review trends or change how the agents work, use `/singularity:optimize`. Thi
 
 ## A run slug (`<work_dir>/<slug>/`)
 
-Spawn the learn role with that work dir. Rebuild the run record from the files there: spec/plan drafts vs final versions, review.md rounds with confirmed and rejected findings, and the verifier result in summary.md.
+Spawn the learn role with that work dir and its `run.json`. For runs from before 0.4.0, which have no `run.json`, rebuild the run record from the files there: spec/plan drafts vs final versions, review.md rounds with confirmed and rejected findings, and the verifier result in summary.md.
 
 ## A PR/MR number or URL
 

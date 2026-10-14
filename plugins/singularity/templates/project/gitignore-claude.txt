@@ -1,0 +1,13 @@
+
+# Project Singularity: commit the team's shared agent setup, keep personal
+# Claude Code files local. Git can't re-include a file inside an ignored
+# directory, so re-include the directory, ignore what's in it, then
+# re-include the shared paths.
+!/.claude/
+/.claude/*
+!/.claude/singularity.md
+!/.claude/settings.json
+!/.claude/singularity/
+!/.claude/agents/
+!/.claude/skills/
+!/.claude/workflows/

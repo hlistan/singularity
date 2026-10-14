@@ -230,6 +230,7 @@ task PROGRESS-T3-add-search.md
 run move T3 in_progress --from todo
 expect_code 5
 expect_err "is PROGRESS"
+expect_err "is PROGRESS, expected TODO (taken"
 expect_file .tasks/PROGRESS-T3-add-search.md
 teardown
 
@@ -251,6 +252,25 @@ expect_out ".tasks/TODO-T3-add-search.md"
 run move T3 finished
 expect_code 2
 expect_file .tasks/TODO-T3-add-search.md
+teardown
+
+test_case "--from accepts several states, so a task can be resumed from progress, blocked or review"
+setup
+task BLOCKED-T3-add-search.md
+run move T3 in_progress --from in_progress,blocked,in_review
+expect_code 0
+expect_out ".tasks/PROGRESS-T3-add-search.md"
+run move T3 in_progress --from in_progress,blocked,in_review
+expect_code 0
+expect_out ".tasks/PROGRESS-T3-add-search.md"
+run move T3 in_progress --from todo,blocked
+expect_code 5
+expect_err "expected one of TODO BLOCKED"
+expect_file .tasks/PROGRESS-T3-add-search.md
+run move T3 in_progress --from todo,nonsense
+expect_code 2
+run move T3 in_progress --from ""
+expect_code 2
 teardown
 
 # ---------- comment ----------
@@ -309,8 +329,68 @@ run --status done=done list
 expect_code 2
 run --status done=TODO list
 expect_code 2
-expect_err "used twice"
+expect_err "can't be shared"
 teardown
+
+test_case "states other than todo can share a prefix: the documented in_review=PROGRESS works"
+setup
+task PROGRESS-T1-alpha.md
+run --status in_review=PROGRESS validate
+expect_code 0
+run --status in_review=PROGRESS get T1
+expect_line "state=in_progress"
+run --status in_review=PROGRESS move T1 in_review
+expect_code 0
+expect_out ".tasks/PROGRESS-T1-alpha.md"
+run --status in_review=PROGRESS move T1 "done" --from in_review
+expect_code 0
+expect_out ".tasks/DONE-T1-alpha.md"
+teardown
+
+test_case "a shared prefix reports the state whose default it is, else the first state mapped to it"
+setup
+task DONE-T1-alpha.md
+task QA-T2-beta.md
+run --status in_review=DONE get T1
+expect_line "state=done"
+run --status in_review=QA get T2
+expect_line "state=in_review"
+teardown
+
+test_case "todo needs a prefix of its own, because claiming a task relies on the rename"
+setup
+run --status in_progress=TODO list
+expect_code 2
+expect_err "can't be shared"
+run --status blocked=TODO list
+expect_code 2
+run --status todo=PROGRESS list
+expect_code 2
+run --status todo=QUEUE list
+expect_code 0
+teardown
+
+# Every tracker.files example in the docs must work as written.
+doc_options() { # FILE -> one script option per line, built from its statuses / extra_statuses examples
+  sed -n -E 's/^[[:space:]#]*statuses:[[:space:]]*\{([^}]*)\}.*/\1/p' "$1" | tr ',' '\n' \
+    | sed -n -E 's/^[[:space:]]*([a-z_]+):[[:space:]]*([A-Z][A-Z0-9_]*)[[:space:]]*$/--status \1=\2/p'
+  sed -n -E 's/^[[:space:]#]*extra_statuses:[[:space:]]*\[([^]]*)\].*/\1/p' "$1" | tr ',' '\n' \
+    | sed -n -E 's/^[[:space:]]*([A-Z][A-Z0-9_]*)[[:space:]]*$/--extra-status \1/p'
+}
+for doc in plugins/singularity/skills/tracker/files.md plugins/singularity/templates/project/.claude/singularity.md; do
+  test_case "the config examples in $doc are accepted"
+  opts="$(doc_options "$ROOT/$doc" | tr '\n' ' ')"
+  case "$opts" in
+    *--status*--extra-status*) ok ;;
+    *) ko "found no statuses and extra_statuses examples in $doc (did the format change?): '$opts'" ;;
+  esac
+  setup
+  task TODO-T1-a.md
+  # shellcheck disable=SC2086 # one option per word, by design
+  run $opts validate
+  expect_code 0
+  teardown
+done
 
 # ---------- git-ignore guard ----------
 test_case "every command except validate refuses a directory that isn't git-ignored"

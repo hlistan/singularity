@@ -70,7 +70,7 @@ One `tracker` skill exposes the same operations everywhere (`get`, `next`, `comm
 
 Tracker and code host are set independently, so Jira with GitLab MRs works. Logical states map to Jira statuses or to labels via `tracker.states`.
 
-**Task files.** With `tracker.type: files`, each task is a file in a git-ignored folder (default `.tasks/`), and its status is the file name prefix: `TODO-T7-fix-login.md`, `PROGRESS-T3-add-search.md`, `DONE-T1-setup-ci.md`. The statuses are `TODO`, `PROGRESS`, `REVIEW`, `BLOCKED` and `DONE`. A project can rename them, and add any others it needs, such as `QA` or `ON_HOLD`, with `tracker.files.extra_statuses`. `/singularity:feature next` takes the first `TODO` task (lowest `priority` in its front matter, then lowest ID) and claims it by renaming it to `PROGRESS`. The rename is atomic, so two sessions never take the same task. At hand-off the task moves to `REVIEW`, and to `DONE` when you confirm.
+**Task files.** With `tracker.type: files`, each task is a file in a git-ignored folder (default `.tasks/`), and its status is the file name prefix: `TODO-T7-fix-login.md`, `PROGRESS-T3-add-search.md`, `DONE-T1-setup-ci.md`. The statuses are `TODO`, `PROGRESS`, `REVIEW`, `BLOCKED` and `DONE`. A project can rename them, and add any others it needs, such as `QA` or `ON_HOLD`, with `tracker.files.extra_statuses`. `/singularity:feature next` takes the first `TODO` task (lowest `priority` in its front matter, then lowest ID) and claims it by renaming it to `PROGRESS`. The rename is atomic, so two sessions never take the same task. At hand-off the task moves to `REVIEW`, and to `DONE` when you confirm. Naming a task that is already in progress, blocked or in review, for example after a session died, offers to resume it from where its work dir stopped.
 
 ## Project customisation
 
@@ -202,7 +202,7 @@ If a step fails, the script says where the release stopped and the exact command
 gh workflow run release.yml --repo hlistan/singularity --ref main
 ```
 
-Projects with auto-update on, which the `init-project` template sets, download the release in their next session and load it on `/reload-plugins` or the following start. Others run `claude plugin update singularity@singularity`. `claude plugin list` shows the installed version, and each run digest records it as `plugin_version` (`+dev` for a `--plugin-dir` checkout), so the optimizer compares releases rather than commits.
+Projects with auto-update on, which the `init-project` template sets, download the release in the background when a session starts, and load it on `/reload-plugins` or at the following start. A session that was already running when the release came out keeps the old version: `/reload-plugins` reloads what is installed but doesn't download anything. To switch a running session, run `/plugin marketplace update singularity` first, then `/reload-plugins`. Projects without auto-update run `claude plugin update singularity@singularity`. `claude plugin list` shows the installed version, and each run digest records it as `plugin_version` (`+dev` for a `--plugin-dir` checkout), so the optimizer compares releases rather than commits.
 
 CI enforces the rules with `node scripts/version.js check`: one valid version, set only in `plugin.json`; a changelog section for it; on pull requests, a version that only goes up and a changelog line for every change to `plugins/singularity/` (eval cases excepted).
 
