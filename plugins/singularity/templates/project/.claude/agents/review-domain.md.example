@@ -1,6 +1,6 @@
 ---
 name: review-domain
-description: Project-specific reviewer for <domain> rules. Picked up automatically by /singularity:feature because its name starts with review-.
+description: Project-specific reviewer for <domain> rules. Runs in the review stage of /singularity:feature when listed in review.extra_reviewers in .claude/singularity.md.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high

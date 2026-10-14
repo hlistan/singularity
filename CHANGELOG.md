@@ -6,6 +6,17 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+### Added
+
+- `optimization.every_runs: 0` stops `/singularity:feature` suggesting `/singularity:optimize`.
+- README: a "How to use" guide covering getting started, usage scenarios, customizing and turning off agents, and creating project agents, pipeline stages and workflows.
+
+### Fixed
+
+- `/singularity:feature` said what to do only when an `after_plan` stage agent reported a blocking problem. Every project stage now works the same way: the pipeline shows the problem and asks whether to fix it and re-run the agent, continue anyway, or stop. Unattended runs stop, as they do on remaining review blockers.
+- `/singularity:feature` passes the four shared review lenses when the config lists only `review.extra_lenses`, instead of reviewing through the extra lenses alone. It also gives the verifier the spec path, and says what an unattended run is: a scheduled or headless run where nobody can answer. `no-gates` on its own only skips the gates.
+- The `review-domain` agent template said `/singularity:feature` picks it up because its name starts with `review-`. Only agents listed in `review.extra_reviewers` run, and the template now says so.
+
 ## [0.4.0] - 2026-10-14
 
 ### Fixed

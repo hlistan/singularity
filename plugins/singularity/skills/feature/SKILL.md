@@ -32,6 +32,10 @@ When spawning a role's agent, pass `model` and `effort` **only** if the config s
 
 One exception: **fix rounds** of the implement role (blocking review findings in step 4, verification failures in step 5) pass `effort: high`, unless the config sets `roles.implement.effort`. Re-running a failure at higher effort costs less than raising the effort of every first attempt.
 
+**Unattended runs.** A scheduled or headless run, where nobody can answer a question, is unattended. `no-gates` only skips the two approval gates; on its own it doesn't make a run unattended.
+
+**Project stages.** `stages.after_plan`, `stages.after_implement` and `stages.before_handoff` list project agents. Run them one at a time, in list order, giving each the work dir path and the stage it follows. If one reports a blocking problem, show it to the user and ask whether to fix it (for example with an implement fix round) and run that agent again, continue anyway, or stop early (step 5). In unattended runs, stop early.
+
 **Ticket.** Use the singularity `tracker` skill:
 
 - If the request is `next` (or empty), `next()` picks the ticket. Trackers without a queue don't support it: ask the user which ticket to take. `next` only starts new work; it never resumes a task.
@@ -67,19 +71,19 @@ Show the user the acceptance criteria and open questions, then **stop for approv
 
 Spawn the **plan** role with the spec path and output path `plan.md`. Copy the result to `plan.draft.md`.
 Show the approach, steps and risks, then **stop for approval**.
-Then run each agent in `stages.after_plan`, giving it the work dir. If one reports a blocking problem, return to the user.
+Then run the `stages.after_plan` agents (see **Project stages**).
 
 Skip both gates only when the arguments contain `no-gates` or the user said so.
 
 ## 3. Implement
 
 Create or switch to the branch named by `conventions.branch`. Spawn the **implement** role with the spec and plan paths.
-Then run each agent in `stages.after_implement`.
+Then run the `stages.after_implement` agents.
 
 ## 4. Review
 
 Run the `singularity:deep-review` workflow (Workflow tool) with args:
-`{ base: <branch point>, spec: <spec path>, lenses: <review.lenses + review.extra_lenses with descriptions>, extraReviewers: <review.extra_reviewers>, reviewer: <roles.review if set> }`.
+`{ base: <branch point>, spec: <spec path>, lenses: <review.lenses (default: correctness, security, maintainability, testability), then review.extra_lenses, with descriptions>, extraReviewers: <review.extra_reviewers>, reviewer: <roles.review if set> }`.
 If workflows are unavailable, spawn the **review** role once per lens and each extra reviewer in parallel instead. If the result lists `failed` reviewers, re-run those before going on: a missing lens is not a clean review.
 
 Write `review.md`: confirmed findings deduplicated and sorted by severity, then the rejected ones with the reason. Rejected findings are a learning signal, so keep them.
@@ -88,8 +92,8 @@ If there are **blocking** findings, spawn **implement** as a fix round with only
 
 ## 5. Verify
 
-Spawn the **verify** role; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop early (below).
-Then run each agent in `stages.before_handoff`.
+Spawn the **verify** role with the spec path; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop early (below).
+Then run the `stages.before_handoff` agents.
 
 **Stopping early.** When the pipeline stops on remaining blockers or failed verification, `move(ticket, blocked)` and `comment` with the reason and the path to the work dir, then report to the user.
 
@@ -107,6 +111,6 @@ If `learning.enabled` isn't false, spawn the **learn** role with the work dir pa
 
 ## 8. Optimization check
 
-Count the `"type":"run"` lines in `runs.jsonl` dated after the last entry in `optimizations.md`. If there are at least `optimization.every_runs` (default 10), tell the user it is time to run `/singularity:optimize`.
+Skip this step if `optimization.every_runs` is 0. Otherwise, count the `"type":"run"` lines in `runs.jsonl` dated after the last entry in `optimizations.md`. If there are at least `optimization.every_runs` (default 10), tell the user it is time to run `/singularity:optimize`.
 
 Finish with a short report to the user: result, verification, open findings, lessons learned, and the PR/MR link if one was opened.

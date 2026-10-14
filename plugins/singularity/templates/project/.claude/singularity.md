@@ -84,7 +84,7 @@ learning:
   max_lines_per_file: 60    # per file; a wrapped lesson counts once
 
 optimization:
-  # Suggest /singularity:optimize after this many pipeline runs.
+  # Suggest /singularity:optimize after this many pipeline runs; 0: never.
   every_runs: 10
   # Let the optimizer check new Claude Code features, models and research.
   web_scan: true

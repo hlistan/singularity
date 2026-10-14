@@ -8,6 +8,8 @@ A self-improving harness for autonomous software delivery with [Claude Code](htt
 
 The plugin is loaded straight from this git repository through `marketplace.json`; nothing is published to a registry. Projects follow versioned releases: see [Versions and releases](#versions-and-releases).
 
+To use it in a project, start with [Getting started](#getting-started).
+
 ## The pipeline
 
 ```text
@@ -29,6 +31,351 @@ The plugin is loaded straight from this git repository through `marketplace.json
 | `/singularity:optimize [project\|shared] [focus] [unattended]` | Slow loop: evidence-based changes to the workflow itself, validated and delivered as a PR/MR |
 | `/singularity:init-project` | Onboards a project repo |
 
+## How to use
+
+Everything below happens in a project repository, in a Claude Code session started from its root. You drive the plugin with `/singularity:*` commands, and the project's choices live in one committed file, `.claude/singularity.md`.
+
+### Getting started
+
+**Before you start**, you need:
+
+- Claude Code v2.1.292 or later, run locally (terminal, IDE or desktop app). Cloud sessions don't load plugins from a repository's settings.
+- The project in a git repository.
+- Access to the project's tracker:
+  - Jira: the Atlassian MCP server, which `init-project` adds; each person signs in once with `/mcp`;
+  - GitHub: the `gh` CLI, signed in;
+  - GitLab: the `glab` CLI, signed in;
+  - task files: nothing.
+- Fable for the review and optimize roles. Without it, Claude Code falls back to another model (see [Roles and models](#roles-and-models)), or you choose one: see [Change a role's model or effort](#change-a-roles-model-or-effort).
+
+**1. Install the plugin, once per machine.**
+
+```bash
+claude plugin marketplace add hlistan/singularity#stable
+claude plugin install singularity@singularity
+```
+
+Teammates joining a project that is already set up can skip this: see step 4.
+
+**2. Set up the project.** Start Claude Code in the project root and run `/singularity:init-project`. It inspects the repository and creates the files below. It never overwrites a file that exists; it shows what it would add and asks first.
+
+| File | What it holds |
+|---|---|
+| `.claude/singularity.md` | The project config: commands, conventions, tracker, and any overrides |
+| `.claude/settings.json` | The marketplace and the enabled plugin, so the whole team gets singularity |
+| `CLAUDE.md` | Imports the config and the project lessons into every session |
+| `.claude/singularity/experience/` | Lessons per role, run digests, the optimizer's archive |
+| `.claude/singularity/evals/` | Regression cases the optimizer validates against |
+| `.mcp.json` | Jira only: the Atlassian MCP server |
+| `.tasks/` | Task files only: the task folder, git-ignored |
+
+Along the way it runs each project command once to confirm it works, asks you to confirm the tracker, and offers the optional hook scripts and example agents. It finishes by checking that the shared files aren't git-ignored, and that the work dir, the task folder and `.claude/settings.local.json` are.
+
+**3. Fill in the gaps.** Replace every `TODO` that `init-project` listed:
+
+- `commands` in `.claude/singularity.md`. The verifier runs them, and the implementer uses `test_one` for targeted tests, so a wrong command costs every run.
+- The project description in `CLAUDE.md`. Every agent reads it.
+
+Leave `roles`, `stages` and the `review.extra_*` lists empty unless you mean to change something. What you leave out follows the shared defaults, so improvements in new releases keep reaching the project.
+
+**4. Commit the files.** A pull request is a good place for the team to review the config. From then on, anyone who clones the project and trusts the folder gets singularity through `.claude/settings.json`, and new releases arrive through auto-update. If the plugin doesn't load for someone, `/plugin` shows the reason on its Errors tab, and `claude plugin install singularity@singularity` installs it.
+
+**5. Check it.** Start a new session in the project:
+
+- `claude plugin list`, in a terminal, shows `singularity@singularity` and its version;
+- typing `/singularity:` lists the commands, and `@agent-singularity:` lists the shared agents.
+
+Then try a small ticket with the approval gates on, as in the first scenario below.
+
+**Updates.** A session already running when a release comes out keeps the old version. To switch it, run `/plugin marketplace update singularity`, then `/reload-plugins`. To hold a project on one release, see [Pin a project to a release](#pin-a-project-to-a-release).
+
+### Usage scenarios
+
+Each run of `/singularity:feature` keeps its files in a work dir, `<work_dir>/<slug>/` (`conventions.work_dir`, default `.agentic/work/`, git-ignored). It holds `spec.md`, `plan.md`, `review.md`, `summary.md`, the first drafts of the spec and plan, and `run.json`, the record a crashed run resumes from.
+
+#### Implement a feature from a tracker ticket
+
+```text
+/singularity:feature ABC-123
+/singularity:feature https://github.com/org/repo/issues/42
+```
+
+1. **Ticket.** The pipeline reads the ticket and moves it to in progress.
+2. **Spec, then a gate.** The spec writer turns the ticket into `spec.md` and shows you its acceptance criteria and open questions. Answer the questions, ask for changes, or edit `spec.md` yourself, then approve. The learner compares your final spec with the first draft, so your edits teach the next run.
+3. **Plan, then a gate.** The same for `plan.md`: the approach, the steps and the risks.
+4. **Implement.** On the branch named by `conventions.branch`, the implementer works through the plan step by step, test first.
+5. **Review.** One reviewer per lens and per project reviewer, and a second reviewer challenges every finding. Blocking findings go back to the implementer, for at most two rounds.
+6. **Verify.** The verifier runs the build, lint, type check and tests, and maps every acceptance criterion to a passing test. A failure gets one fix round.
+7. **Hand-off.** You get `summary.md` and a short report. The pipeline commits only if `conventions.auto_commit` is true, and opens a draft PR/MR only if `conventions.auto_pr` is true or you ask for one; then it moves the ticket to in review, with the link. A task file moves to review either way.
+8. **Learn.** The learner updates the files in `.claude/singularity/experience/` and tells you which lessons it added or changed. Review them in the PR/MR with the code.
+
+If blocking findings remain after the fix rounds, or verification still fails, the run stops and comments on the ticket with the reason and the work dir. The ticket moves to blocked: a task file always, a Jira, GitHub or GitLab ticket if `tracker.states` maps `blocked`. Fix the cause, then resume the run.
+
+#### Implement a feature from a prompt
+
+```text
+/singularity:feature Add CSV export to the orders page. Admins only, same filters as the table, at most 10,000 rows.
+```
+
+The text is the ticket. The pipeline is the same, without tracker reads or updates, and the work dir is named after the request, for example `.agentic/work/orders-csv-export/`. Write what you would put in a ticket: who it's for, what should happen, the constraints, and how you'll know it's done. Whatever is missing comes back as open questions at the spec gate.
+
+#### Work through a queue of task files
+
+With `tracker.type: files`, a task is a file in the task folder whose name starts with its status, for example `.tasks/TODO-T12-orders-csv-export.md`:
+
+```markdown
+---
+priority: 1
+---
+# Add CSV export to the orders page
+
+Admins only, same filters as the table, at most 10,000 rows.
+```
+
+Create the file yourself, or ask Claude to create a task. Then:
+
+```text
+/singularity:feature next      # the first TODO task: lowest priority number, then ID
+/singularity:feature T12       # a task you name
+```
+
+`next` claims the task by renaming it to `PROGRESS-…`, so two sessions working in the same folder never take the same task. At hand-off the task moves to `REVIEW`, and Claude asks whether to mark it `DONE`. Statuses and their names are described under [Trackers](#trackers). Other trackers have no queue to take from, so with them `next` asks which ticket to take.
+
+#### Fix a defect or apply a refactoring
+
+```text
+/singularity:feature ABC-456
+/singularity:feature Defect: saving a draft with an empty title returns 500 instead of 400
+/singularity:feature Refactoring: replace the hand-written retry loops in api/ with RetryPolicy
+```
+
+The pipeline is the same, adapted to the kind of work. A defect spec starts with the reproduction, and the plan's first step is a failing test that reproduces it. For a refactoring, `conventions.breaking_changes` says whether it may drop backward compatibility; client contracts are tested either way.
+
+#### Run without the approval gates
+
+```text
+/singularity:feature ABC-123 no-gates
+```
+
+Use this for small, well-specified tickets, and for scheduled or headless runs, where nobody is there to approve. Review, verification and their stop rules still apply, and the pipeline still commits or opens a PR/MR only as `conventions` allows. A scheduled or headless run never resumes a ticket that is in progress, blocked or in review, and it leaves a finished task file in review.
+
+#### Resume an interrupted run
+
+If a session died, or a run stopped on blockers, run the same command again:
+
+```text
+/singularity:feature ABC-123
+```
+
+The pipeline shows the ticket's status and the last lines of its log or comments, and asks whether to resume, because another session may still be working on it. On yes, it continues in the existing work dir from the first stage `run.json` doesn't mark as done, and shows again any gate you hadn't approved. `next` never resumes a task.
+
+Resuming finds the work dir by ticket ID, so it works for tracker tickets and task files, not for runs started from a prompt. For work that may take more than one session, start from a ticket or a task file.
+
+#### Review a branch without the pipeline
+
+```text
+/singularity:deep-review
+```
+
+Reviews the current branch against its merge base with the default branch, through every lens and project reviewer, and checks it against the spec if the work dir has one. Every finding is challenged, and you get the confirmed findings by severity, the rejected ones with the reason, and any reviewer that failed.
+
+#### Learn from a human review
+
+```text
+/singularity:learn 87
+/singularity:learn https://gitlab.com/group/repo/-/merge_requests/87
+```
+
+Run this after your teammates have reviewed a PR/MR the pipeline opened. The learner records what they caught that the agents missed, as lessons and as regression eval cases. `/singularity:learn <slug>` learns from a run's work dir instead.
+
+#### Improve the workflow itself
+
+```text
+/singularity:optimize
+/singularity:optimize review false positives
+/singularity:optimize unattended
+```
+
+The pipeline suggests this after every `optimization.every_runs` runs (default 10). The optimizer looks at the evidence from past runs, proposes up to five changes to the agents, models, lenses and lessons, validates them, and delivers them as a draft PR/MR on a `singularity/optimize-<date>` branch. Extra words narrow it to a focus. With `unattended`, for scheduled runs, it skips the gates and implements the curation changes (lessons, new eval cases) and the behaviour changes whose validation fits within `optimization.max_eval_cost_usd`. Changes to gates, guardrails, permissions and its own definition are only ever proposed. Nothing it does merges without a human. How it works: [Experience and self-optimization](#experience-and-self-optimization).
+
+### Customizing agents and turning them off
+
+Most of this is set in `.claude/singularity.md` in the project. It is committed, so the whole team gets the same behaviour, and sessions load it when they start, so start a new session after changing it.
+
+| To | Set, in the project |
+|---|---|
+| Change a role's model or effort | `roles.<role>.model`, `roles.<role>.effort` |
+| Give the agents project knowledge | `CLAUDE.md`, `.claude/singularity/experience/*.md` |
+| Keep agents away from some paths | the "Do not touch" section of `.claude/singularity.md` |
+| Add or drop review lenses | `review.lenses`, `review.extra_lenses` |
+| Format edits, guard commands, add checks | `.claude/singularity/hooks/{post-edit,pre-bash,verify}.sh` |
+| Replace a role's agent | `.claude/agents/<name>.md` and `roles.<role>.agent` (see [Creating custom roles and agents](#creating-custom-roles-and-agents)) |
+| Add a reviewer, a pipeline step, a workflow or a command | see [Creating custom roles and agents](#creating-custom-roles-and-agents) |
+
+#### Change a role's model or effort
+
+```yaml
+roles:
+  review:    { model: opus, effort: high }   # e.g. if Fable isn't enabled for the org
+  optimize:  { model: opus, effort: xhigh }  # the same, for the optimizer
+  implement: { model: opus }                 # effort stays medium, fix rounds high
+```
+
+Set only what you change: a role you leave out keeps its shared default, listed under [Roles and models](#roles-and-models). The implementer's fix rounds run at high effort unless you set `roles.implement.effort`. [docs/models-and-effort.md](docs/models-and-effort.md) has the evidence behind each default.
+
+#### Give the agents project knowledge
+
+Most project specifics don't need a new agent. Put them where the shared agents already look:
+
+- `CLAUDE.md`: what the project is, its architecture, and conventions that differ from the shared engineering standards. Every agent reads it.
+- `.claude/singularity/experience/project.md`, loaded into every session, and `spec.md`, `plan.md`, `implement.md`, `review.md` and `verify.md` in the same folder, each read by its role. The learner curates them and keeps each within `learning.max_lines_per_file` lessons (40 for `project.md`), dropping the least-seen first. You can edit them too.
+- The "Do not touch" section at the end of `.claude/singularity.md`: generated code, vendored libraries, released migrations.
+
+The agents stay the shared ones, so their improvements keep reaching the project.
+
+#### Tune the review
+
+```yaml
+review:
+  lenses: [correctness, security, maintainability, testability]
+  extra_lenses:
+    - { name: performance, description: "N+1 queries, missing pagination" }
+    - { name: accessibility, description: "labels, focus order, contrast" }
+```
+
+Each lens is one more reviewer on the review model, plus a challenge for each of its findings, so it adds cost and time to every run. Drop a shared lens only with a reason, and write the reason next to it.
+
+#### Hooks
+
+`init-project` can add three scripts in `.claude/singularity/hooks/`:
+
+- `post-edit.sh` runs after every file edit, for example to format the file. Exit 2 with a message on stderr to send feedback to Claude.
+- `pre-bash.sh` runs before every shell command, as well as the shared guard. Exit 2 with a message on stderr to block the command.
+- `verify.sh` is run by the verifier, for checks the commands don't cover, such as contract tests or a smoke test.
+
+`post-edit.sh` and `pre-bash.sh` run only while they are executable.
+
+#### Turn things off
+
+| To turn off | Do this |
+|---|---|
+| The approval gates, for one run | Add `no-gates` to the command |
+| The learner | `learning.enabled: false`. This also stops the run digests that the optimizer and its reminder work from. `/singularity:learn` still works when you run it |
+| Tracker comments and status changes | `tracker.updates: false`. Tickets are still read |
+| Commits and PRs/MRs | Nothing to do: `conventions.auto_commit` and `auto_pr` are off by default |
+| A shared review lens | Remove it from `review.lenses` |
+| A project reviewer or stage | Remove it from `review.extra_reviewers` or from its `stages` list |
+| The optimizer | Nothing to do: it runs only when someone runs `/singularity:optimize`. `optimization.every_runs: 0` also stops the pipeline suggesting it |
+| The optimizer's web research | `optimization.web_scan: false` |
+| A project hook | Delete the script |
+| singularity, for yourself in one project | `claude plugin disable singularity@singularity --scope local`, which writes to your git-ignored `.claude/settings.local.json`. Pass `--scope local`: without it, the change can land in the committed `.claude/settings.json` |
+| singularity, for the whole project | Set `"singularity@singularity": false` under `enabledPlugins` in `.claude/settings.json`, and commit |
+
+The spec, plan, implement, review and verify stages are the pipeline itself, so they can't be turned off one by one. To make a stage cheaper, give its role a smaller model or lower effort, or bind it to your own agent; for a different sequence of stages, write your own workflow (next section). The shared command guard stays on as long as the plugin is enabled.
+
+### Creating custom roles and agents
+
+The pipeline's roles are fixed: spec, plan, implement, review, verify, learn and optimize. A project adds behaviour with its own agents, Markdown files in `.claude/agents/`, attached at one of four points:
+
+| Point | Config | When it runs | Example |
+|---|---|---|---|
+| Replace a role | `roles.<role>.agent` | instead of the shared agent | `custom-implementer.md.example` |
+| Add a reviewer | `review.extra_reviewers` | in the review stage, next to the lenses | `review-domain.md.example` |
+| Add a pipeline step | `stages.after_plan`, `after_implement`, `before_handoff` | at that point in `/singularity:feature` | |
+| Add a workflow or command | `.claude/workflows/*.js`, `.claude/skills/<name>/SKILL.md` | when someone runs it | `dependency-upgrade.js.example` |
+
+The examples are in [`plugins/singularity/templates/project/.claude/`](plugins/singularity/templates/project/.claude/); `init-project` copies them if you ask.
+
+#### Write the agent
+
+```markdown
+---
+name: migration-checker
+description: Checks that database migrations in the current change are reversible and safe on a live database. Runs as a singularity pipeline stage (after_implement).
+tools: Read, Grep, Glob, Bash
+model: opus
+effort: high
+skills:
+  - singularity:engineering-standards
+---
+
+# Migration checker
+
+Read `.claude/singularity/experience/project.md` first.
+
+Check every migration this branch adds, compared with
+`conventions.default_branch`:
+
+- it has a working down migration;
+- it doesn't lock a large table, such as an index built without
+  CONCURRENTLY.
+
+Report each problem with file:line, evidence and a fix. Call a problem
+blocking only if running the migration could lose data or cause downtime.
+```
+
+- `name` is how the config refers to the agent: plain, unique, without `singularity:` and without `:`.
+- `description` says what it does and where it runs. Claude uses it to decide when to delegate, so say when an agent is only for the pipeline.
+- `tools`: the fewest it needs. Reviewers and checkers get no `Write` or `Edit`.
+- `model` and `effort`: choose with [Choosing model and effort for a custom agent](docs/models-and-effort.md#choosing-model-and-effort-for-a-custom-agent). For an agent bound to a role, `roles.<role>.model` and `.effort` override them.
+- `skills: [singularity:engineering-standards]` preloads the shared standards, as the shared agents do.
+- In the body, name the experience file it should read, say exactly what to report and when a problem is blocking, and tell it to report only what it can prove.
+
+Commit the agent; `git check-ignore .claude/agents/<name>.md` should print nothing. Try it on its own before wiring it in, for example by asking Claude to "use the migration-checker agent on this branch".
+
+#### Replace a role's agent
+
+```yaml
+roles:
+  implement: { agent: android-implementer }
+```
+
+Do this when the role needs instructions or tools the shared agent can't get from `CLAUDE.md` and lessons, such as a platform's build commands. The stages hand work to each other through files, so a replacement has to keep its role's contract:
+
+| Role | Gets | Must deliver |
+|---|---|---|
+| spec | the ticket, its kind (feature, defect or refactoring) and an output path | a spec at that path, with numbered acceptance criteria and open questions |
+| plan | the spec path and an output path | a plan at that path, with steps as checkboxes (`- [ ] 1. …`), which resuming relies on |
+| implement | the spec and plan paths; in fix rounds, the findings or failures | code and tests on the current branch, each finished step ticked in the plan |
+| review | a lens, the base and the spec (task A), or one finding to challenge (task B) | findings with severity, location, problem, evidence and fix; or a verdict: confirmed, severity, reason |
+| verify | the spec path | a table of checks with evidence, the Test Coverage and Verification Summary, then PASS or FAIL |
+| learn | the work dir and the run record; or, from `/singularity:learn <PR/MR>`, the human review comments | updated experience files and a run digest; for a PR/MR, a `human_review` digest and an eval case per escaped defect |
+
+The optimize role can be rebound too, with `roles.optimize.agent`, but its contract is the longest: start from `optimizer.md`.
+
+The safest start is a copy of the shared agent, [`plugins/singularity/agents/<agent>.md`](plugins/singularity/agents/), renamed, with the project specifics added. A replacement is a fork: later improvements to the shared agent no longer reach that role, so keep replacements few, and read the [changelog](CHANGELOG.md) for changes to the agents you replaced when you upgrade. To add project rules to the review, add a reviewer rather than replacing the review role.
+
+#### Add a reviewer
+
+```yaml
+review:
+  extra_reviewers: [review-domain]
+```
+
+A reviewer runs only when it is listed here. It gets the change's base and the spec, runs on its own model and effort, and must report findings with severity (`blocking`, `should-fix` or `nit`), location, problem, evidence and fix. The review role challenges each finding: confirmed ones count like lens findings, so blocking ones go to a fix round, and rejected ones go into `review.md` for the learner. `review-domain.md.example` is a starting point for rules such as "money amounts use the Money type".
+
+#### Add a pipeline step
+
+```yaml
+stages:
+  after_plan: [threat-modeler]           # read-only checks of the plan
+  after_implement: [migration-checker]   # runs before review, so its changes get reviewed
+  before_handoff: [release-notes-writer] # after review and verification
+```
+
+Each agent runs in list order and gets the work dir path, so it can read the spec, the plan and, later, `review.md`. If it reports a blocking problem, the pipeline shows it to you and asks whether to fix it and run the agent again, continue anyway, or stop. A scheduled or headless run stops, as it does on remaining review blockers. A `before_handoff` agent runs after review and verification, so anything it changes goes unreviewed: keep it to notes and documents, or make it read-only.
+
+#### Add a workflow or a command
+
+For a sequence of stages that `/singularity:feature` doesn't fit, write your own:
+
+- **Workflow:** `.claude/workflows/<name>.js`, run as `/<name>`. It orchestrates agents in code with `agent(prompt, { agentType, model, effort, isolation, schema, label, phase })`, `pipeline` and `parallel`. `agentType` is a shared agent (`'singularity:implementer'`) or one of yours. `dependency-upgrade.js.example` upgrades each listed package in its own worktree with the shared implementer, then verifies each with the shared verifier; rename it to `.js` to use it.
+- **Skill:** `.claude/skills/<name>/SKILL.md`, a command (`/<name>`), or knowledge Claude loads when it's relevant. A skill can use singularity's parts: the `tracker` skill for tickets, the `singularity:deep-review` workflow, and the shared agents.
+
+#### Let custom agents learn
+
+Tell each custom agent which experience file to read: the one for the role it replaces, or `project.md`. Findings from extra reviewers count like any other finding: confirmed ones become implement or plan lessons, and rejected ones review lessons. `/singularity:optimize` covers project agents too: it can propose changes to them, with evidence, for you to approve.
+
 ## Roles and models
 
 Every code-facing role preloads the `engineering-standards` skill (definition of done, no hardcoding, dependency injection, red-green-refactor, test pyramid, boundary and failure-mode coverage, deterministic assertions, zero debt). The standards are one file, `skills/engineering-standards/SKILL.md`; the roles enforce them at their own stage, and `docs/adopted-roles.md` maps each adopted guideline to where it is enforced.
@@ -45,15 +392,7 @@ Pipelines refer to **roles**, not agent names. Each role has a shared default, a
 | learn | `singularity:learner` | opus · high | curation decides whether experience helps or hurts |
 | optimize | `singularity:optimizer` | **fable · xhigh** | rare, high-leverage changes to the workflow itself |
 
-The defaults live in one place: the frontmatter of `plugins/singularity/agents/*.md`. A project overrides a role in its `.claude/singularity.md`:
-
-```yaml
-roles:
-  implement: { agent: android-implementer }      # project agent in .claude/agents/
-  review:    { model: opus, effort: high }       # e.g. if Fable isn't enabled for the org
-```
-
-The evidence behind each default, and how to choose model and effort for a project's own agents, is in [docs/models-and-effort.md](docs/models-and-effort.md).
+The defaults live in one place: the frontmatter of `plugins/singularity/agents/*.md`. A project overrides them in its `.claude/singularity.md`: see [Change a role's model or effort](#change-a-roles-model-or-effort) and [Replace a role's agent](#replace-a-roles-agent). The evidence behind each default, and how to choose model and effort for a project's own agents, is in [docs/models-and-effort.md](docs/models-and-effort.md).
 
 If an organization's model allowlist blocks a model, Claude Code falls back to the newest allowed version of the same family, or else to the session model. On Amazon Bedrock, Google Cloud and Microsoft Foundry some aliases resolve to older models (for example `sonnet` to Sonnet 4.5); check with `/model`. Per-call `effort` overrides need Claude Code v2.1.292 or later.
 
@@ -71,17 +410,6 @@ One `tracker` skill exposes the same operations everywhere (`get`, `next`, `comm
 Tracker and code host are set independently, so Jira with GitLab MRs works. Logical states map to Jira statuses or to labels via `tracker.states`.
 
 **Task files.** With `tracker.type: files`, each task is a file in a git-ignored folder (default `.tasks/`), and its status is the file name prefix: `TODO-T7-fix-login.md`, `PROGRESS-T3-add-search.md`, `DONE-T1-setup-ci.md`. The statuses are `TODO`, `PROGRESS`, `REVIEW`, `BLOCKED` and `DONE`. A project can rename them, and add any others it needs, such as `QA` or `ON_HOLD`, with `tracker.files.extra_statuses`. `/singularity:feature next` takes the first `TODO` task (lowest `priority` in its front matter, then lowest ID) and claims it by renaming it to `PROGRESS`. The rename is atomic, so two sessions never take the same task. At hand-off the task moves to `REVIEW`, and to `DONE` when you confirm. Naming a task that is already in progress, blocked or in review, for example after a session died, offers to resume it from where its work dir stopped.
-
-## Project customisation
-
-| Need | Where (in the project repo) |
-|---|---|
-| Swap an agent for a role | `.claude/agents/<name>.md` + `roles.<role>.agent`; pick its model and effort with [docs/models-and-effort.md](docs/models-and-effort.md#choosing-model-and-effort-for-a-custom-agent) |
-| Extra review dimensions | `review.extra_lenses` (text) or `review.extra_reviewers` (project agents) |
-| Extra pipeline steps | `stages.after_plan / after_implement / before_handoff` |
-| Project workflows | `.claude/workflows/*.js`, using shared agents via `agentType: 'singularity:…'` (example in templates) |
-| Project commands / knowledge | `.claude/skills/<name>/SKILL.md` |
-| Formatting, guards, extra checks | `.claude/singularity/hooks/{post-edit,pre-bash,verify}.sh` |
 
 ## Experience and self-optimization
 
@@ -135,11 +463,6 @@ docs/                     design notes, adopted role prompts and where each clau
 scripts/                  release.sh and version.js (versions and releases), check-evals.js, check-sensitive.sh
 CHANGELOG.md              what changed in each release
 ```
-
-## Connect a project
-
-1. Once per machine: `claude plugin marketplace add hlistan/singularity#stable`, then `claude plugin install singularity@singularity`.
-2. In the project: run `/singularity:init-project`, review the generated files, and commit them. From then on, anyone who clones the project and trusts the folder gets singularity through `.claude/settings.json`, and new releases arrive through auto-update.
 
 ## Changing the shared setup
 
