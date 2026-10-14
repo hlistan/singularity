@@ -15,7 +15,7 @@ Experience directory: `learning.dir` from the project config (default `.claude/s
 |---|---|---|
 | `project.md` | every session (imported by CLAUDE.md) | codebase facts and gotchas everyone needs. Max 40 lessons |
 | `spec.md`, `plan.md`, `implement.md`, `review.md`, `verify.md` | the agent bound to that role | role-specific lessons |
-| `upstream.md` | the optimizer, in shared scope | lessons that aren't project-specific |
+| `upstream.md` | the optimizer, which turns them into upstream reports | lessons that aren't project-specific |
 | `runs.jsonl` | the optimizer | one digest line per run and per human review |
 | `optimizations.md` | the optimizer | its archive. **Don't edit it** |
 
@@ -23,7 +23,7 @@ Use Bash only for `git diff`, `git log`, `diff` and `date`.
 
 ## Where lessons come from
 
-Use only evidence from the run you were given:
+Use only evidence from the run and the human reviews you were given:
 
 | Evidence | Lesson goes to |
 |---|---|
@@ -58,6 +58,7 @@ After a pipeline run, using the run record you were given:
 
 ```json
 {"type":"run","date":"2026-10-13","ticket":"ABC-123","slug":"abc-123-health","pipeline":"feature","plugin_version":"0.1.0",
+ "branch":"feature/ABC-123-health","change":"!123",
  "models":{"implement":"sonnet","review":"fable"},
  "stages":{"spec":{"s":95,"tokens":31000},"plan":{"s":140},"implement":{"s":610,"tokens":220000},"review":{"s":300},"verify":{"s":80}},
  "gate_edits":{"spec":false,"plan":true},"gate_edit_kinds":["missing rollback step"],
@@ -66,9 +67,9 @@ After a pipeline run, using the run record you were given:
  "lessons_added":1,"lessons_reinforced":2}
 ```
 
-`findings` lists confirmed **and** rejected findings (`confirmed:false`), each with a short reusable `category` and the stage at fault. Reuse category names already in runs.jsonl so the optimizer can count them. Leave out fields you don't have; never invent numbers.
+`branch` and `change` (the PR/MR, if one was opened) let the pipeline find the human review later. `findings` lists confirmed **and** rejected findings (`confirmed:false`), each with a short reusable `category` and the stage at fault. Reuse category names already in runs.jsonl so the optimizer can count them. Leave out fields you don't have; never invent numbers.
 
-After a human review (`/singularity:learn <PR/MR>`):
+After a human review, one line per change the pipeline gives you, with the `ref` and the run's `slug` it gives you (the pipeline uses them to avoid learning the same review twice), and an empty `escaped` list when the reviewers found nothing the agents missed:
 
 ```json
 {"type":"human_review","date":"2026-10-14","ref":"!123","slug":"abc-123-health","escaped":[{"category":"missing authz check","severity":"blocking","stage":"review"}]}
@@ -96,7 +97,7 @@ Short note on why it matters.
 
 - Mark every 5th case `holdout: true` (count the existing cases) so the optimizer has a held-out set.
 - When the team rejected a finding, you may create a `precision` case the same way.
-- Never edit or delete existing cases.
+- Never edit or delete existing cases, and don't create a second case for a defect that an existing case's `source` already names.
 
 ## Return
 

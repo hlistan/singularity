@@ -1,4 +1,5 @@
 # Local-only configuration (may name private repositories or hold credentials)
+# optimizer/: left over from the removed shared optimizer scope; keeps old local files out of git
 optimizer/projects.yaml
 optimizer/runs/
 .env

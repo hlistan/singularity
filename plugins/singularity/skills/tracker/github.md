@@ -14,4 +14,6 @@ Use the `gh` CLI. Check `gh auth status` first; if it isn't authenticated, tell 
 - **link**: put `Closes #<n>` (or `Refs #<n>` for partial work) in the PR body.
 - **create**: `gh issue create --repo <repo> --title ... --body-file ...` (only on explicit request).
 - **open_change**: `gh pr create --repo <repo> --base <default_branch> --head <branch> --draft --title "<title>" --body-file <file>`
+- **find_change**: `gh pr list --repo <repo> --head <branch> --state all --json number,url,state,baseRefOid,headRefOid --limit 1` (`state` is `OPEN`, `MERGED` or `CLOSED`)
+- **list_changes**: `gh pr list --repo <repo> --state <state> --limit <n> --json number,url,headRefName,baseRefOid,headRefOid`
 - **review_comments**: `gh pr view <n> --repo <repo> --json reviews,comments` plus inline comments via `gh api repos/<repo>/pulls/<n>/comments`

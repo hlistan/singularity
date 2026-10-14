@@ -12,7 +12,7 @@ Which model and effort each role runs on, the evidence behind each choice, and h
 | review | fable · high | medium for the tier and effort; **open** between Fable and Opus | a judge needs a frontier model; the published evidence leans towards Opus 5.5 matching Fable 5.1 at lower cost, so trial T1 replays `opus · high` before any switch |
 | verify | sonnet · **medium** (was low) | low (canary C1) | Anthropic's Sonnet 5.5 guidance starts multistep tool use at medium; lower effort makes fewer tool calls; the coverage summary needs judgment |
 | learn | opus · high | medium | ACE needs "a reasonably strong Reflector"; a small reflector left a prompt unchanged where frontier ones improved it (Decagon) |
-| optimize | fable · xhigh | medium | Anthropic positions Fable for hours-long sessions and deep research, and xhigh for agentic work over 30 minutes; it runs every ~10 runs |
+| optimize | fable · xhigh | medium | Anthropic positions Fable for hours-long sessions and deep research, and xhigh for agentic work over 30 minutes; it runs at onboarding and every ~10 runs |
 
 Confidence: **high** would mean measurements on these models and this kind of work; **medium** means Anthropic's guidance for these models plus indirect evidence; **low** means a reasoned call from guidance, shipped as a canary. Nothing here reaches high.
 
@@ -133,7 +133,7 @@ The work: decide which lessons to add, merge or retire, and turn misses into eva
 
 ### optimize · fable · xhigh
 
-The work: hours of evidence analysis, a web practice scan, falsifiable proposals and their implementation, every ~10 runs.
+The work: a survey of the whole codebase at onboarding; then, every ~10 runs, hours of evidence analysis, a web practice scan, falsifiable proposals, their implementation, and upstream reports on the plugin.
 
 - This is the work Anthropic positions Fable for. Its Fable 5.1 guidance is to step up to xhigh or max "for the most capability-sensitive agentic and coding work", and it documents xhigh for agentic tasks over 30 minutes.
 - Meta-agents in the self-improvement literature are frontier models (Darwin Gödel Machine, ADAS), and a small reflector produced no change (Decagon). The optimizer runs rarely, so its cost is a small share of the total.
@@ -144,7 +144,6 @@ The work: hours of evidence analysis, a web practice scan, falsifiable proposals
 
 | Call | Model · effort | Why it fits |
 |---|---|---|
-| deep-review: read the review config | haiku · low | extracting a config file into a schema, which is Haiku's documented use |
 | optimize-scan: list eval cases | sonnet · low | listing and counting files |
 | optimize-scan: other evidence streams | session model; medium, or high for failures and the practice scan | analysis, on the strong session model |
 | replay-evals: judge | sonnet · low | a reference-guided match ("same root cause as this known defect?"), which is much easier than open judging. It is a grader (tier 3): changing it breaks comparison with past baselines, so change it only by hand, after checking it against a few human labels |
@@ -217,7 +216,7 @@ The run digest records the model each role ran on, so the optimizer can compare 
 
 ## Open trials
 
-Contracts for the next `/singularity:optimize` run or a manual trial. C1 and C2 ship with this change as canaries; T1–T3 are proposals.
+Contracts for the next optimizer run or a manual trial. C1 and C2 ship with this change as canaries; T1–T3 are proposals.
 
 | # | Change | Prediction | Counter-metric | Validation |
 |---|---|---|---|---|
@@ -225,7 +224,7 @@ Contracts for the next `/singularity:optimize` run or a manual trial. C1 and C2 
 | C2 | implement fix rounds at high | fewer second fix rounds, and fewer stops with blockers left after two rounds | tokens per fix round | canary: check after 10 runs on the release that ships it |
 | T1 | review: fable · high → opus · high | recall and precision within one case of the baseline, holdout included, at lower review cost | escaped defects | `replay-evals` with two variants |
 | T2 | implement: sonnet · medium → opus · low | first-pass verification and review rounds equal or better, cost per run within 10% | seconds per implement stage | canary, 10 runs |
-| T3 | security lens at xhigh | more security recall cases caught | precision cases, cost | `replay-evals`; needs per-lens effort in `deep-review` |
+| T3 | security lens at xhigh | more security recall cases caught | precision cases, cost | `replay-evals`; needs per-lens effort in the review stage |
 
 ## Sources
 

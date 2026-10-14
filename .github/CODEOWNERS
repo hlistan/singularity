@@ -4,5 +4,6 @@
 /plugins/singularity/scripts/               @hlistan
 /plugins/singularity/evals/                 @hlistan
 /plugins/singularity/agents/optimizer.md    @hlistan
+/plugins/singularity/optimizer/             @hlistan
 /.github/                                   @hlistan
 /scripts/                                   @hlistan

@@ -8,8 +8,27 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ### Added
 
-- `optimization.every_runs: 0` stops `/singularity:feature` suggesting `/singularity:optimize`.
-- README: a "How to use" guide covering getting started, usage scenarios, customizing and turning off agents, and creating project agents, pipeline stages and workflows.
+- `optimization.every_runs: 0` stops `/singularity:feature` offering an optimizer run.
+- README: a "How to use" guide covering getting started, usage scenarios, customizing and turning off agents, and creating project agents, pipeline stages and workflows, and a table of contents.
+- The optimizer **onboards** the agents to a project: it surveys the repository, its history and recent reviews, fills the project sections of `CLAUDE.md` and the experience files, checks the commands, and proposes the review lenses, stages and role settings that fit, as canaries. `/singularity:init-project` starts it when the setup is done; `/singularity:feature` suggests it for projects that were never onboarded.
+- **Upstream reports.** The optimizer never edits the plugin. When a failure's cause is in a shared agent, skill, workflow, standard, template or default, it writes a report in `.claude/singularity/upstream/` (new; `init-project` creates it) with the problem, the evidence, the proposed fix and a contract, written to leave out anything that identifies the project, plus a local workaround if the project needs one. Once the team approves a report, the optimizer offers to file it as an issue in the singularity repository, and follows it up until the fix is released. `CONTRIBUTING.md` describes how maintainers adopt reports.
+- Learning from human reviews is part of `/singularity:feature`: every run looks up the PRs/MRs of earlier runs by branch, and once one is merged or closed, the learner turns its review comments into lessons and eval cases. Run digests record `branch` and `change` for this.
+- Tracker operations `find_change(branch)`, the PR/MR for a branch with its state and commits, and `list_changes(state, limit)`.
+- `optimize-scan` audits the project context (template TODOs, stale lessons, commands that no longer match), and its failure taxonomy and practice scan say whether each fix belongs to the project or the plugin.
+
+### Changed
+
+- **Breaking:** the optimizer is an agent, not a command. Ask for `@agent-singularity:optimizer` in a session, or run `claude --agent singularity:optimizer`; `/singularity:feature` offers it when it is due. Its procedures are playbooks in `plugins/singularity/optimizer/`. As a subagent it stops at each decision with a **Decision needed** block for the session to show you. Scheduled runs ask for it by name, for example `claude -p "Use the singularity:optimizer agent: optimize, unattended"`.
+- **Breaking:** `/singularity:feature` runs the review stage itself: one reviewer agent per lens and per project reviewer, then a challenger per finding, as the removed `deep-review` workflow did. To review a branch outside the pipeline, ask for `@agent-singularity:reviewer`.
+- The reviewer's Task C also challenges upstream reports: is the cause really in the plugin, would the fix suit other projects, and does the report identify the project?
+- `optimize-scan` no longer takes a `scope` argument.
+- The optimizer's change tiers, for a project: adding a "Do not touch" entry is curation (tier 1) and removing one is oversight (tier 3); adding a check to the project's `verify.sh` or `post-edit.sh` is a behaviour change (tier 2) and removing or weakening one is tier 3; the optimize role's own binding, model and effort are tier 3. The optimizer makes its changes in a worktree of its own, so a pipeline run's uncommitted work is never mixed in.
+- `/singularity:feature` keeps a finding whose challenger failed twice, marked unverified, instead of dropping it.
+
+### Removed
+
+- **Breaking:** `/singularity:optimize`, with its `shared` scope and `optimizer/projects.example.yaml`. Maintainers learn from projects through their upstream reports instead.
+- **Breaking:** `/singularity:deep-review` (the `deep-review` workflow) and `/singularity:learn`. Review and learning, including learning from human PR/MR reviews, are stages of `/singularity:feature`.
 
 ### Fixed
 

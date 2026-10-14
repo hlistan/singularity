@@ -73,7 +73,7 @@ Exit codes: `1` validation problems or directory not git-ignored, `2` usage erro
 - **comment**: `comment <ID> "<text>"` appends a timestamped line under a `## Log` heading in the task file. One line, no secrets.
 - **link**: `comment <ID> "Link: <url>"`.
 - **create**: `create <slug> "<title>"`, with the body on standard input. Only on the user's explicit request.
-- **open_change**, **review_comments**: not part of this adapter; they come from `code_host` (GitHub or GitLab), or are skipped when `code_host.type` is `none`.
+- **open_change**, **find_change**, **list_changes**, **review_comments**: not part of this adapter; they come from `code_host` (GitHub or GitLab), or are skipped when `code_host.type` is `none`.
 
 ## Done
 

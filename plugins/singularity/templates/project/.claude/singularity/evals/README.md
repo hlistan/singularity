@@ -1,9 +1,9 @@
 # Project eval cases
 
 Regression cases built from **real** failures on this project. The learner
-creates them from escaped defects (`/singularity:learn <PR/MR>`). The
-optimizer replays them to prove that a change to the workflow helps and breaks
-nothing (`replay-evals` workflow).
+creates them from escaped defects: what human reviewers caught in a PR/MR
+that the agents missed. The optimizer replays them to prove that a change to
+the workflow helps and breaks nothing (`replay-evals` workflow).
 
 One directory per case:
 

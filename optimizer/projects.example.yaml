@@ -1,6 +1,0 @@
-# Copy to optimizer/projects.yaml (git-ignored: it names your private repositories).
-# Projects whose committed singularity experience the shared optimizer reads.
-# Run /singularity:optimize shared inside this repo; it sparse-clones .claude/singularity/ from each project.
-projects:
-  - name: example-service
-    repo: git@github.com:your-org/example-service.git

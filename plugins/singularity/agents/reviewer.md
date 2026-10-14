@@ -36,12 +36,13 @@ You get a finding from another reviewer. Read the code yourself and try to **dis
 
 ## Task C: challenge a proposed workflow change
 
-You get an optimization proposal (contract and diff sketch) and the evidence it cites. Try to refute it:
+You get a proposal from the optimizer (contract and diff sketch), or an upstream report it wrote for the singularity maintainers, and the evidence it cites. Try to refute it:
 
 - Is the evidence real and representative, or only a few runs?
 - Would the change overfit to the cases it cites?
 - Could it move the target metric by gaming it (fewer findings reported, weaker checks, skipped steps) while real quality drops?
 - Does it reduce human oversight or touch what measures the agents?
 - Was it tried before (check `optimizations.md`)? Is there a smaller change that would do the same?
+- For an upstream report: is the cause really in the shared plugin, or in this project? Would the fix hold for projects unlike this one? Does the report name or quote anything that identifies the project (names, repositories, hosts, ticket keys, people, code)?
 
 Verdict: **sound**, **revise** (say how) or **reject** (say why).
