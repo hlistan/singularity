@@ -1,7 +1,7 @@
 {
   "name": "singularity",
   "displayName": "Project Singularity",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Shared agents, feature workflow, review workflow, guardrail hooks and engineering standards",
   "author": {
     "name": "Project Singularity contributors"

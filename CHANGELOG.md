@@ -6,6 +6,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-14
+
 ### Added
 
 - `optimization.every_runs: 0` stops `/singularity:feature` offering an optimizer run.
@@ -96,7 +98,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 - Projects follow the `stable` branch (`ref: stable` in the `init-project` settings template), so they only receive released versions.
 - Run digests record the `plugin_version` each run used, so the optimizer can compare releases.
 
-[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.4.0...HEAD
+[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.5.0...HEAD
+[0.5.0]: https://github.com/hlistan/singularity/compare/singularity--v0.4.0...singularity--v0.5.0
 [0.4.0]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...singularity--v0.4.0
 [0.3.0]: https://github.com/hlistan/singularity/compare/singularity--v0.2.0...singularity--v0.3.0
 [0.2.0]: https://github.com/hlistan/singularity/compare/singularity--v0.1.0...singularity--v0.2.0
