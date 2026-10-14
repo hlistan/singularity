@@ -132,7 +132,7 @@ AWK
 
 expand_braces() { # prints each expansion of a pattern's {a,b} groups
   local s="$1" pre inner post item
-  case "$s" in *[{]*[}]*) ;; *) printf '%s\n' "$s"; return ;; esac
+  case "$s" in *'{'*'}'*) ;; *) printf '%s\n' "$s"; return ;; esac
   pre="$(printf '%s' "$s" | sed 's/^\([^{]*\){.*$/\1/')"
   inner="$(printf '%s' "$s" | sed 's/^[^{]*{\([^}]*\)}.*$/\1/')"
   post="$(printf '%s' "$s" | sed 's/^[^{]*{[^}]*}//')"
