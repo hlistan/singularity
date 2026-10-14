@@ -11,8 +11,8 @@ Which model and effort each role runs on, the evidence behind each choice, and h
 | implement | sonnet · medium, **fix rounds at high** | medium | Anthropic's Sonnet 5.5 guidance names this case: medium for well-specified agentic coding, high for harder work; re-running failures at high beat running everything at high (Anthropic) |
 | review | fable · high | medium for the tier and effort; **open** between Fable and Opus | a judge needs a frontier model; the published evidence leans towards Opus 5.5 matching Fable 5.1 at lower cost, so trial T1 replays `opus · high` before any switch |
 | verify | sonnet · **medium** (was low) | low (canary C1) | Anthropic's Sonnet 5.5 guidance starts multistep tool use at medium; lower effort makes fewer tool calls; the coverage summary needs judgment |
-| learn | opus · high | medium | ACE needs "a reasonably strong Reflector"; a small reflector left a prompt unchanged where frontier ones improved it (Decagon) |
-| optimize | fable · xhigh | medium | Anthropic positions Fable for hours-long sessions and deep research, and xhigh for agentic work over 30 minutes; it runs every ~10 runs |
+| optimize, learn job | opus · high | medium | the job runs after every run; ACE needs "a reasonably strong Reflector"; a small reflector left a prompt unchanged where frontier ones improved it (Decagon) |
+| optimize | fable · xhigh | medium | Anthropic positions Fable for hours-long sessions and deep research, and xhigh for agentic work over 30 minutes; it runs at onboarding and every ~10 runs |
 
 Confidence: **high** would mean measurements on these models and this kind of work; **medium** means Anthropic's guidance for these models plus indirect evidence; **low** means a reasoned call from guidance, shipped as a canary. Nothing here reaches high.
 
@@ -122,18 +122,18 @@ What matters more than effort: agents often claim success that didn't happen. In
 
 Not Haiku: on terminal work Haiku 5.5 trails Sonnet 5.5 by about 30 points (39.2% vs 70.6% on Terminal-Bench 4.0).
 
-### learn · opus · high
+### optimize, learn job · opus · high
 
-The work: decide which lessons to add, merge or retire, and turn misses into eval cases. Its output loads into every future session, so a bad lesson costs on every run.
+The work: decide which guidelines to add, correct, merge or remove, and turn misses into eval cases. Its output loads into every future session, so a bad or outdated guideline costs on every run.
 
 - ACE's authors list "a reasonably strong Reflector" as a requirement; without it the playbook "may become noisy or even harmful". Monolithic rewrites caused context collapse that dropped accuracy below the no-adaptation baseline.
 - In one production task at Decagon (GEPA), a GPT-4o-mini reflector left the prompt "essentially unchanged". GPT-4.1, GPT-5.2, Claude Sonnet and Claude Opus reflectors each improved it by about 5–6%, and the reflector was 5–10% of the optimization cost.
-- Memory that evolves can degrade safety (*Your Agent May Misevolve*, ICLR 2026), which is why lessons are reviewed in the PR/MR.
-- Decagon's result suggests a Sonnet-class reflector could be enough. The learner runs once per run, so the saving would be small next to the risk. Opus stays.
+- Memory that evolves can degrade safety (*Your Agent May Misevolve*, ICLR 2026), which is why guidelines are reviewed in the PR/MR.
+- Decagon's result suggests a Sonnet-class reflector could be enough. The learn job runs once per run, so the saving would be small next to the risk. Opus stays. The pipeline passes opus · high for this job; the optimizer's own fable · xhigh is for its onboarding and optimizations, and `roles.learn` overrides the learn job alone.
 
 ### optimize · fable · xhigh
 
-The work: hours of evidence analysis, a web practice scan, falsifiable proposals and their implementation, every ~10 runs.
+The work: a survey of the whole codebase at onboarding; then, every ~10 runs, hours of evidence analysis, a web practice scan, falsifiable proposals, their implementation, and upstream reports on the plugin.
 
 - This is the work Anthropic positions Fable for. Its Fable 5.1 guidance is to step up to xhigh or max "for the most capability-sensitive agentic and coding work", and it documents xhigh for agentic tasks over 30 minutes.
 - Meta-agents in the self-improvement literature are frontier models (Darwin Gödel Machine, ADAS), and a small reflector produced no change (Decagon). The optimizer runs rarely, so its cost is a small share of the total.
@@ -144,7 +144,6 @@ The work: hours of evidence analysis, a web practice scan, falsifiable proposals
 
 | Call | Model · effort | Why it fits |
 |---|---|---|
-| deep-review: read the review config | haiku · low | extracting a config file into a schema, which is Haiku's documented use |
 | optimize-scan: list eval cases | sonnet · low | listing and counting files |
 | optimize-scan: other evidence streams | session model; medium, or high for failures and the practice scan | analysis, on the strong session model |
 | replay-evals: judge | sonnet · low | a reference-guided match ("same root cause as this known defect?"), which is much easier than open judging. It is a grader (tier 3): changing it breaks comparison with past baselines, so change it only by hand, after checking it against a few human labels |
@@ -217,7 +216,7 @@ The run digest records the model each role ran on, so the optimizer can compare 
 
 ## Open trials
 
-Contracts for the next `/singularity:optimize` run or a manual trial. C1 and C2 ship with this change as canaries; T1–T3 are proposals.
+Contracts for the next optimizer run or a manual trial. C1 and C2 ship with this change as canaries; T1–T3 are proposals.
 
 | # | Change | Prediction | Counter-metric | Validation |
 |---|---|---|---|---|
@@ -225,7 +224,7 @@ Contracts for the next `/singularity:optimize` run or a manual trial. C1 and C2 
 | C2 | implement fix rounds at high | fewer second fix rounds, and fewer stops with blockers left after two rounds | tokens per fix round | canary: check after 10 runs on the release that ships it |
 | T1 | review: fable · high → opus · high | recall and precision within one case of the baseline, holdout included, at lower review cost | escaped defects | `replay-evals` with two variants |
 | T2 | implement: sonnet · medium → opus · low | first-pass verification and review rounds equal or better, cost per run within 10% | seconds per implement stage | canary, 10 runs |
-| T3 | security lens at xhigh | more security recall cases caught | precision cases, cost | `replay-evals`; needs per-lens effort in `deep-review` |
+| T3 | security lens at xhigh | more security recall cases caught | precision cases, cost | `replay-evals`; needs per-lens effort in the review stage |
 
 ## Sources
 

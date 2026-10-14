@@ -7,7 +7,7 @@ set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BLOCK="$ROOT/plugins/singularity/templates/project/gitignore-claude.txt"
-SHARED="CLAUDE.md .claude/singularity.md .claude/settings.json .claude/singularity/experience/project.md .claude/singularity/evals/README.md .claude/agents/review-domain.md"
+SHARED="CLAUDE.md .claude/singularity.md .claude/settings.json .claude/singularity/goals.md .claude/singularity/guidelines/project.md .claude/singularity/experience/runs.jsonl .claude/singularity/evals/README.md .claude/rules/singularity/api.md .claude/singularity/upstream/README.md .claude/agents/review-domain.md"
 LOCAL=".claude/settings.local.json .claude/agent-memory-local/reviewer/MEMORY.md"
 pass=0
 fail=0

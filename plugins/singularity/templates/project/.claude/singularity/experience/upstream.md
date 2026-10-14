@@ -1,7 +1,9 @@
 # Upstream candidates
 
-Lessons that apply to every project. Propose them to the shared singularity
-repo (engineering standards or an agent definition).
+Guidelines that would be right in any project, not just this one, each with
+the evidence for it. The singularity optimizer turns the ones with enough
+evidence into upstream reports for the singularity maintainers, in
+`../upstream/`.
 
-Maintained by the singularity learner and reviewed in PRs/MRs like code.
-Format and rules: singularity `agents/learner.md`.
+Written and read by the singularity optimizer. Format and rules: singularity
+`optimizer/learn.md`.

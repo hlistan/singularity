@@ -14,4 +14,6 @@ Use the `glab` CLI. Check `glab auth status` first; if it isn't authenticated fo
 - **link**: put `Closes #<n>` in the MR description. For a Jira tracker with a GitLab code host, put the Jira key in the branch name and MR title instead.
 - **create**: `glab issue create --repo <project> --title ... --description ...` (only on explicit request).
 - **open_change**: `glab mr create --repo <project> --source-branch <branch> --target-branch <default_branch> --draft --title "<title>" --description "<body>"`
+- **find_change**: `glab api "projects/:id/merge_requests?source_branch=<branch>&state=all&per_page=1"`, giving `iid`, `web_url`, `state` (`opened`, `merged` or `closed`), `diff_refs.base_sha`, `sha`, `created_at`, `merged_at` and `closed_at`
+- **list_changes**: `glab api "projects/:id/merge_requests?state=<state>&per_page=<n>"`, with `source_branch` for the branch
 - **review_comments**: `glab mr view <n> --repo <project> --comments`, or `glab api projects/:id/merge_requests/<n>/discussions` for inline threads

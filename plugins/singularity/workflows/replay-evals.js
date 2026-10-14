@@ -1,7 +1,7 @@
 export const meta = {
   name: 'replay-evals',
-  description: 'Replay the project eval cases (real escaped defects and known false positives) through the reviewer, for one or more config variants, and score recall and precision',
-  whenToUse: 'Validating review-related changes in /singularity:optimize, or checking reviewer quality after a model change',
+  description: 'Internal, run by the singularity optimizer agent. Replays the project eval cases (real escaped defects and known false positives) through the reviewer, for one or more config variants, and scores recall and precision',
+  whenToUse: 'Validating review-related changes in an optimizer run (singularity:optimizer), or checking reviewer quality after a model change',
   phases: [
     { title: 'Replay', detail: 'reviewer on each case change, per variant, in an isolated worktree' },
     { title: 'Judge', detail: 'did the reviewer catch the expected defect / avoid the known false positive' },

@@ -2,8 +2,9 @@
 
 The optimizer's archive: every change it proposed, how it was validated, and
 what happened. **Rejected and reverted entries stay here** so that ideas which
-didn't work aren't retried without new evidence. Only `/singularity:optimize`
-writes this file, and it wraps lines at 80 columns.
+didn't work aren't retried without new evidence. Only the singularity
+optimizer writes this file, and it wraps lines at 80 columns. Onboarding is
+one entry, `O-<date>-onboard`, listing the context it wrote.
 
 Entry format:
 

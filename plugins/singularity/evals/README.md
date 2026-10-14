@@ -1,6 +1,6 @@
 # singularity plugin evals
 
-Regression suite for the **shared** plugin. `/singularity:optimize shared` runs it on a candidate branch and on the default branch, and adopts a change only if nothing regresses. Add a case whenever a real failure is traced to a shared agent, skill or workflow.
+Regression suite for the **shared** plugin. Maintainers run it on a candidate branch and on the default branch before adopting a change, including an upstream report from a project, and adopt it only if nothing regresses (see `CONTRIBUTING.md`). Add a case whenever a real failure is traced to a shared agent, skill or workflow.
 
 ```bash
 claude plugin eval plugins/singularity --scaffold --trust-plugin \

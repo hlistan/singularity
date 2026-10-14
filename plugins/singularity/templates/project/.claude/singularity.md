@@ -57,9 +57,10 @@ code_host:
 
 # Rebind a role to another agent, or change its model or effort. Leave a role
 # out to keep the shared default:
-#   spec, plan, learn: opus high     implement: sonnet medium (fixes: high)
+#   spec, plan: opus high            implement: sonnet medium (fixes: high)
 #   review: fable high               verify: sonnet medium
 #   optimize: fable xhigh
+#   learn: opus high (the optimizer's after-run job: model and effort only)
 # Choosing model and effort for your own agents:
 #   https://github.com/hlistan/singularity/blob/main/docs/models-and-effort.md
 roles: {}
@@ -80,11 +81,11 @@ stages:                     # project agents inserted into the shared pipeline
 
 learning:
   enabled: true
-  dir: .claude/singularity/experience
-  max_lines_per_file: 60    # per file; a wrapped lesson counts once
+  dir: .claude/singularity/experience   # the record: run digests, archive
+  max_lines_per_file: 60    # guidelines per file; a wrapped one counts once
 
 optimization:
-  # Suggest /singularity:optimize after this many pipeline runs.
+  # Offer an optimizer run after this many pipeline runs; 0: never.
   every_runs: 10
   # Let the optimizer check new Claude Code features, models and research.
   web_scan: true

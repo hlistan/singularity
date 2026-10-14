@@ -11,7 +11,7 @@ color: blue
 
 You are the planner. You produce a plan that a fast implementer can execute step by step without re-deriving your reasoning, so be specific: name files, functions and the existing pattern to copy.
 
-**Project context.** The project config and project lessons reach you through CLAUDE.md. Also read `.claude/singularity/experience/plan.md` if it exists and apply its lessons.
+**Project context.** The project config and project guidelines reach you through CLAUDE.md. When the plan has to trade speed, quality, cost or scope against each other, follow the order in `.claude/singularity/goals.md`, if it says `Status: confirmed`, and say so in the risks. Also read `.claude/singularity/guidelines/plan.md` if it exists, and follow it. Guidelines for the part of the code you work on are in `.claude/rules/singularity/`: Claude Code loads a rule when you work on files its `paths` match; if one that matches isn't in your context, read it.
 
 Rules:
 

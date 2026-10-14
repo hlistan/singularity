@@ -25,6 +25,7 @@ To try your changes in a project: `claude --plugin-dir /path/to/singularity/plug
 | Change | Location | Notes |
 |---|---|---|
 | Shared agent behaviour | `plugins/singularity/agents/*.md` | Keep each definition under ~120 lines; prefer config and checks over prose |
+| The optimizer's procedures | `plugins/singularity/optimizer/*.md` | Playbooks the optimizer agent reads per job; a maintainer reviews them (CODEOWNERS) |
 | Pipelines and commands | `plugins/singularity/skills/*/SKILL.md` | |
 | Orchestration | `plugins/singularity/workflows/*.js` | Plain JavaScript; see the `/workflow-authoring` skill in Claude Code |
 | Guardrails | `plugins/singularity/hooks/`, `scripts/` | Needs a maintainer review (CODEOWNERS) |
@@ -32,6 +33,15 @@ To try your changes in a project: `claude --plugin-dir /path/to/singularity/plug
 | Per-project templates | `plugins/singularity/templates/project/` | |
 | Design notes | `docs/` | |
 | Release notes | `CHANGELOG.md`, under `## [Unreleased]` | One line per change, written for the people running projects |
+
+## Adopting upstream reports
+
+Each project's optimizer writes up what it finds wrong in the shared plugin as an **upstream report**: the problem, the evidence as counts and categories, the exact fix it proposes, and a contract. Reports arrive as issues titled `[upstream] …`, or pasted into a Workflow improvement issue. Each comes from one project's evidence, so treat it as a hypothesis:
+
+1. **Triage.** Confirm the cause in the plugin's files at the version the report names, and look for other reports of the same problem: several projects reporting it is the strongest evidence. If the fix would only suit the reporting project, decline with the reason; that project's optimizer records it and keeps its local workaround only while it still pays off.
+2. **Reproduce.** Add a plugin eval case that fails for the reported reason (`plugins/singularity/evals/`, see its README). Build it from a generic example, never from a project's code.
+3. **Fix.** Make the smallest change that does it, the report's proposed fix or a better one. Run the suite on your branch and on `main` (`git worktree add ../baseline main`), and compare case by case: adopt the change only if the new case passes and nothing regresses.
+4. **Record.** Add a line under `## [Unreleased]` in `CHANGELOG.md` that names the issue, and describe the change as a contract in the PR. Don't close the issue from the PR: "Fixes #…" closes it at merge, before projects can get it. Close it once the release is out, with a comment naming the version, so the reporting projects' optimizers can check the fix and propose removing their workarounds.
 
 ## Before you open a pull request
 
