@@ -39,9 +39,9 @@ Pipelines refer to **roles**, not agent names. Each role has a shared default, a
 |---|---|---|---|
 | spec | `singularity:spec-writer` | opus · high | ambiguity costs the most when caught late |
 | plan | `singularity:planner` | opus · high | a precise plan lets a fast model implement it |
-| implement | `singularity:implementer` | **sonnet · medium** | fast; targeted tests during steps, full suite once at the end |
-| review | `singularity:reviewer` | **fable · high** | strongest model, read-only, fresh context, four lenses (correctness, security, maintainability, testability), findings challenged |
-| verify | `singularity:verifier` | sonnet · low | runs commands, reports evidence |
+| implement | `singularity:implementer` | **sonnet · medium**, fix rounds high | fast; targeted tests during steps, full suite once at the end. Fix rounds escalate to high: re-running a failure at higher effort costs less than raising the baseline |
+| review | `singularity:reviewer` | **fable · high** | read-only, fresh context, four lenses (correctness, security, maintainability, testability), findings challenged. Opus 5.5 · high is the first trial to replay |
+| verify | `singularity:verifier` | sonnet · medium | runs every check and maps acceptance criteria to tests; lower effort makes fewer tool calls |
 | learn | `singularity:learner` | opus · high | curation decides whether experience helps or hurts |
 | optimize | `singularity:optimizer` | **fable · xhigh** | rare, high-leverage changes to the workflow itself |
 
@@ -50,10 +50,12 @@ The defaults live in one place: the frontmatter of `plugins/singularity/agents/*
 ```yaml
 roles:
   implement: { agent: android-implementer }      # project agent in .claude/agents/
-  review:    { model: opus, effort: xhigh }      # e.g. if Fable isn't enabled for the org
+  review:    { model: opus, effort: high }       # e.g. if Fable isn't enabled for the org
 ```
 
-If an organization's model allowlist blocks a model, Claude Code falls back to the session model. Per-call `effort` overrides need Claude Code v2.1.292 or later.
+The evidence behind each default, and how to choose model and effort for a project's own agents, is in [docs/models-and-effort.md](docs/models-and-effort.md).
+
+If an organization's model allowlist blocks a model, Claude Code falls back to the newest allowed version of the same family, or else to the session model. On Amazon Bedrock, Google Cloud and Microsoft Foundry some aliases resolve to older models (for example `sonnet` to Sonnet 4.5); check with `/model`. Per-call `effort` overrides need Claude Code v2.1.292 or later.
 
 ## Trackers
 
@@ -71,7 +73,7 @@ Tracker and code host are set independently, so Jira with GitLab MRs works. Logi
 
 | Need | Where (in the project repo) |
 |---|---|
-| Swap an agent for a role | `.claude/agents/<name>.md` + `roles.<role>.agent` |
+| Swap an agent for a role | `.claude/agents/<name>.md` + `roles.<role>.agent`; pick its model and effort with [docs/models-and-effort.md](docs/models-and-effort.md#choosing-model-and-effort-for-a-custom-agent) |
 | Extra review dimensions | `review.extra_lenses` (text) or `review.extra_reviewers` (project agents) |
 | Extra pipeline steps | `stages.after_plan / after_implement / before_handoff` |
 | Project workflows | `.claude/workflows/*.js`, using shared agents via `agentType: 'singularity:…'` (example in templates) |
@@ -160,9 +162,77 @@ While the version is 0.x the interface isn't stable yet: a breaking change bumps
 
 ### Release
 
-1. On a branch, run `node scripts/version.js bump minor` (or `patch`, `major`). It moves the `[Unreleased]` lines into a dated release section and sets the version in `plugin.json`.
-2. Open a PR titled `chore(release): singularity <version>` and merge it.
-3. The [Release workflow](.github/workflows/release.yml) tags the commit `singularity--v<version>` (the tag `claude plugin tag` creates), moves `stable` to it, and publishes a GitHub release with that version's changelog section.
+Releases are made on GitHub, in [hlistan/singularity](https://github.com/hlistan/singularity), never from a local checkout. A release is a pull request to `main` that changes the version. Merging it starts the [Release workflow](https://github.com/hlistan/singularity/actions/workflows/release.yml), which:
+
+- creates the [tag](https://github.com/hlistan/singularity/tags) `singularity--v<version>`, the same tag `claude plugin tag` creates;
+- moves the [`stable`](https://github.com/hlistan/singularity/tree/stable) branch to the tagged commit;
+- publishes a [GitHub release](https://github.com/hlistan/singularity/releases) whose notes are that version's changelog section.
+
+Before you start, check that:
+
+- the changes to release are merged to `main`, each with a line under `## [Unreleased]` in [CHANGELOG.md](https://github.com/hlistan/singularity/blob/main/CHANGELOG.md);
+- you can push branches to the repository and merge pull requests into `main`;
+- `gh auth status` shows you signed in to github.com, and Node.js 22 or later is installed.
+
+The steps are the same for every release. Run them in one bash or zsh session, because later steps reuse the variables that earlier ones set. They work in a fresh clone of the GitHub repository, so local changes or other remotes in your own checkout don't matter.
+
+1. Check that the last CI run on `main` passed, clone `main` into a scratch folder, and list what will ship. If `notes` finds no section, nothing is waiting to be released.
+
+   ```bash
+   REPO=hlistan/singularity
+   gh run list --repo "$REPO" --workflow ci.yml --branch main --limit 1
+   WORK=$(mktemp -d)
+   gh repo clone "$REPO" "$WORK/singularity" -- --branch main
+   cd "$WORK/singularity"
+   node scripts/version.js check
+   node scripts/version.js notes Unreleased
+   ```
+
+2. Choose the bump from those lines and the [table above](#what-the-version-means): `major` if projects must change something (`minor` while the version is 0.x, with the line starting **Breaking:**), `minor` for new capability or behaviour, `patch` for fixes only. Set `LEVEL` to it, then bump on a release branch and push the branch. `bump` moves the `[Unreleased]` lines into a section dated today in UTC (add `--date YYYY-MM-DD` to choose the date), sets `version` in `plugin.json` and updates the compare links. Read the diff before committing.
+
+   ```bash
+   LEVEL=minor
+   node scripts/version.js bump "$LEVEL"
+   VERSION=$(node scripts/version.js current)
+   TAG=$(node scripts/version.js tag)
+   git switch -c "release/$VERSION"
+   git diff
+   node scripts/version.js check
+   git commit -am "chore(release): singularity $VERSION"
+   git push -u origin "release/$VERSION"
+   ```
+
+3. Open the release pull request, wait for its checks, and merge it. Its description is the release notes as GitHub will publish them. If `main` requires an approving review, get it before the merge ([CODEOWNERS](https://github.com/hlistan/singularity/blob/main/.github/CODEOWNERS) names the reviewer).
+
+   ```bash
+   PR=$(gh pr create --repo "$REPO" --base main --head "release/$VERSION" \
+     --title "chore(release): singularity $VERSION" --body "$(node scripts/version.js notes)")
+   sleep 15
+   gh pr checks "$PR" --repo "$REPO" --watch
+   gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
+   ```
+
+4. Wait for the Release workflow run that the merge started. It fails the command if the run fails.
+
+   ```bash
+   SHA=$(gh pr view "$PR" --repo "$REPO" --json mergeCommit -q .mergeCommit.oid)
+   until RUN=$(gh run list --repo "$REPO" --workflow release.yml --commit "$SHA" --json databaseId -q '.[0].databaseId') && [ -n "$RUN" ]; do sleep 5; done
+   gh run watch "$RUN" --repo "$REPO" --exit-status
+   ```
+
+5. Check the result on GitHub: the release is published, and `stable` points at the tagged commit, so both `ls-remote` lines show the same hash. Then remove the scratch clone.
+
+   ```bash
+   gh release view "$TAG" --repo "$REPO"
+   git ls-remote "https://github.com/$REPO.git" refs/heads/stable "refs/tags/$TAG^{}"
+   cd ~ && rm -rf "$WORK"
+   ```
+
+If the Release workflow fails part-way, fix the cause on `main` and run it again. It skips what already happened, such as an existing tag or a published release:
+
+```bash
+gh workflow run release.yml --repo hlistan/singularity --ref main
+```
 
 Projects with auto-update on, which the `init-project` template sets, download the release in their next session and load it on `/reload-plugins` or the following start. Others run `claude plugin update singularity@singularity`. `claude plugin list` shows the installed version, and each run digest records it as `plugin_version` (`+dev` for a `--plugin-dir` checkout), so the optimizer compares releases rather than commits.
 

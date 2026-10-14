@@ -41,11 +41,13 @@ code_host:
   # gitlab: { host: gitlab.com, project: group/repo }
 
 # Rebind a role to another agent, or change its model/effort. Omit to keep the shared default.
-# Shared defaults: spec/plan/learn = opus high, implement = sonnet medium, review = fable high,
-#                  verify = sonnet low, optimize = fable xhigh
+# Shared defaults: spec/plan/learn = opus high, implement = sonnet medium (fix rounds high),
+#                  review = fable high, verify = sonnet medium, optimize = fable xhigh
+# Choosing model and effort for your own agents:
+#   https://github.com/hlistan/singularity/blob/main/docs/models-and-effort.md
 roles: {}
   # implement: { agent: android-implementer }     # a project agent in .claude/agents/
-  # review:    { model: opus, effort: xhigh }     # e.g. if Fable isn't enabled for your org
+  # review:    { model: opus, effort: high }      # e.g. if Fable isn't enabled for your org
 
 review:
   lenses: [correctness, security, maintainability, testability]   # the shared lenses; drop one here only with a reason

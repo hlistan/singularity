@@ -30,6 +30,8 @@ The project config `.claude/singularity.md` is normally in your context through 
 
 When spawning a role's agent, pass `model` and `effort` **only** if the config sets them for that role. Otherwise leave them out, so the shared defaults in the agent definitions apply.
 
+One exception: **fix rounds** of the implement role (blocking review findings in step 4, verification failures in step 5) pass `effort: high`, unless the config sets `roles.implement.effort`. Re-running a failure at higher effort costs less than raising the effort of every first attempt.
+
 **Ticket.** Use the singularity `tracker` skill: `get(ticket)`, then `move(ticket, in_progress)`. If `tracker.type` is `none` or the request is plain text, use the text as the ticket.
 
 **Work dir.** Pick a kebab-case `<slug>` that includes the ticket ID if there is one. Create `<work_dir>/<slug>/` (default `.agentic/work`). Note the start time with `date -u +%FT%TZ`.
@@ -69,11 +71,11 @@ If workflows are unavailable, spawn the **review** role once per lens and each e
 
 Write `review.md`: confirmed findings deduplicated and sorted by severity, then the rejected ones with the reason. Rejected findings are a learning signal, so keep them.
 
-If there are **blocking** findings, spawn **implement** with only those findings, then re-review only the lenses that raised them. At most 2 rounds; if blockers remain after that, stop and report to the user.
+If there are **blocking** findings, spawn **implement** as a fix round with only those findings, then re-review only the lenses that raised them. At most 2 rounds; if blockers remain after that, stop and report to the user.
 
 ## 5. Verify
 
-Spawn the **verify** role; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once, then verify again. If it still fails, stop and report.
+Spawn the **verify** role; its report includes the Test Coverage and Verification Summary, which goes first in `summary.md`. On FAIL, send the failures to **implement** once as a fix round, then verify again. If it still fails, stop and report.
 Then run each agent in `stages.before_handoff`.
 
 ## 6. Hand-off

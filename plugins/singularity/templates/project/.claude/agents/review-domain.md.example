@@ -3,6 +3,7 @@ name: review-domain
 description: Project-specific reviewer for <domain> rules. Picked up automatically by /singularity:feature because its name starts with review-.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
 ---
 
 Review the diff (git diff <base>...HEAD) only for violations of these project rules:
