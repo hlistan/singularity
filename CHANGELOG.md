@@ -6,6 +6,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-14
+
 ### Fixed
 
 - Files tracker: the documented `statuses: { in_review: PROGRESS }` was rejected with "status prefix PROGRESS used twice", so a project that copied it had no working tracker. States other than `todo` can now share a prefix; moving a task to a state that shares its current prefix keeps the file name. `todo` still needs a prefix of its own, because claiming a task relies on renaming it out of the queue. The tests now run every `statuses` and `extra_statuses` example in the docs.
@@ -55,7 +57,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 - Projects follow the `stable` branch (`ref: stable` in the `init-project` settings template), so they only receive released versions.
 - Run digests record the `plugin_version` each run used, so the optimizer can compare releases.
 
-[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...HEAD
+[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.4.0...HEAD
+[0.4.0]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...singularity--v0.4.0
 [0.3.0]: https://github.com/hlistan/singularity/compare/singularity--v0.2.0...singularity--v0.3.0
 [0.2.0]: https://github.com/hlistan/singularity/compare/singularity--v0.1.0...singularity--v0.2.0
 [0.1.0]: https://github.com/hlistan/singularity/releases/tag/singularity--v0.1.0
