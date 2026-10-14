@@ -129,7 +129,7 @@ plugins/singularity/
   templates/       project files for init-project, Jira MCP config
 optimizer/projects.example.yaml   template for the (git-ignored) list of projects the shared optimizer learns from
 docs/                     design notes, adopted role prompts and where each clause lives
-scripts/                  version.js (versions and releases), check-evals.js, check-sensitive.sh
+scripts/                  release.sh and version.js (versions and releases), check-evals.js, check-sensitive.sh
 CHANGELOG.md              what changed in each release
 ```
 
@@ -162,73 +162,38 @@ While the version is 0.x the interface isn't stable yet: a breaking change bumps
 
 ### Release
 
-Releases are made on GitHub, in [hlistan/singularity](https://github.com/hlistan/singularity), never from a local checkout. A release is a pull request to `main` that changes the version. Merging it starts the [Release workflow](https://github.com/hlistan/singularity/actions/workflows/release.yml), which:
+Releases are published by GitHub, in [hlistan/singularity](https://github.com/hlistan/singularity), never pushed from a local checkout. A release is a pull request to `main` that changes the version, and merging it starts the [Release workflow](https://github.com/hlistan/singularity/actions/workflows/release.yml), which:
 
 - creates the [tag](https://github.com/hlistan/singularity/tags) `singularity--v<version>`, the same tag `claude plugin tag` creates;
 - moves the [`stable`](https://github.com/hlistan/singularity/tree/stable) branch to the tagged commit;
 - publishes a [GitHub release](https://github.com/hlistan/singularity/releases) whose notes are that version's changelog section.
 
-Before you start, check that:
+Run one command from an up-to-date `main`:
 
-- the changes to release are merged to `main`, each with a line under `## [Unreleased]` in [CHANGELOG.md](https://github.com/hlistan/singularity/blob/main/CHANGELOG.md);
-- you can push branches to the repository and merge pull requests into `main`;
-- `gh auth status` shows you signed in to github.com, and Node.js 22 or later is installed.
+```bash
+scripts/release.sh minor
+```
 
-The steps are the same for every release. Run them in one bash or zsh session, because later steps reuse the variables that earlier ones set. They work in a fresh clone of the GitHub repository, so local changes or other remotes in your own checkout don't matter.
+The level is `patch`, `minor` or `major`, chosen with the [table above](#what-the-version-means), or an explicit `X.Y.Z`. `--dry-run` checks everything and shows the plan, then stops; it changes nothing except fast-forwarding `main` if GitHub's is ahead. `--yes` skips the confirmation, and `--date YYYY-MM-DD` sets the changelog date (default: today, UTC). The script needs `git`, Node.js, and `gh` signed in to github.com with write access to the repository.
 
-1. Check that the last CI run on `main` passed, clone `main` into a scratch folder, and list what will ship. If `notes` finds no section, nothing is waiting to be released.
+It stops at the first problem, and does this:
 
-   ```bash
-   REPO=hlistan/singularity
-   gh run list --repo "$REPO" --workflow ci.yml --branch main --limit 1
-   WORK=$(mktemp -d)
-   gh repo clone "$REPO" "$WORK/singularity" -- --branch main
-   cd "$WORK/singularity"
-   node scripts/version.js check
-   node scripts/version.js notes Unreleased
-   ```
+1. **Checks** the GitHub repository named by `repository` in `plugin.json`, and the git remote that points at it, whatever it's called (https or ssh). Then it checks that:
+   - you have write access to the repository;
+   - you're on `main` with no uncommitted changes, at the same commit as GitHub (it fast-forwards if GitHub is ahead, and refuses if you have commits GitHub doesn't);
+   - the last CI run on that commit passed, and `node scripts/version.js check` passes;
+   - something is waiting under `## [Unreleased]`;
+   - **Breaking:** lines aren't being released as a patch, or as a minor from 1.0 on;
+   - the release branch and tag don't exist yet.
+2. **Shows the plan** (versions, tag, release notes) and asks you to confirm.
+3. **Bumps the version** on `release/<version>` with `node scripts/version.js bump`, checks that only `CHANGELOG.md` and `plugin.json` changed, commits `chore(release): singularity <version>` and pushes the branch.
+4. **Opens the release pull request**, with the release notes as its description, and waits for its checks.
+5. **Squash-merges it.** If `main` needs an approving review, it turns on auto-merge, or asks you to merge on GitHub, and waits until the pull request is merged.
+6. **Follows the Release workflow** run for the merge commit until it finishes.
+7. **Checks the result:** the GitHub release is published, and the tag and `stable` point at the same commit.
+8. **Updates your `main`**, fetches the tag, and deletes the release branch locally and on GitHub.
 
-2. Choose the bump from those lines and the [table above](#what-the-version-means): `major` if projects must change something (`minor` while the version is 0.x, with the line starting **Breaking:**), `minor` for new capability or behaviour, `patch` for fixes only. Set `LEVEL` to it, then bump on a release branch and push the branch. `bump` moves the `[Unreleased]` lines into a section dated today in UTC (add `--date YYYY-MM-DD` to choose the date), sets `version` in `plugin.json` and updates the compare links. Read the diff before committing.
-
-   ```bash
-   LEVEL=minor
-   node scripts/version.js bump "$LEVEL"
-   VERSION=$(node scripts/version.js current)
-   TAG=$(node scripts/version.js tag)
-   git switch -c "release/$VERSION"
-   git diff
-   node scripts/version.js check
-   git commit -am "chore(release): singularity $VERSION"
-   git push -u origin "release/$VERSION"
-   ```
-
-3. Open the release pull request, wait for its checks, and merge it. Its description is the release notes as GitHub will publish them. If `main` requires an approving review, get it before the merge ([CODEOWNERS](https://github.com/hlistan/singularity/blob/main/.github/CODEOWNERS) names the reviewer).
-
-   ```bash
-   PR=$(gh pr create --repo "$REPO" --base main --head "release/$VERSION" \
-     --title "chore(release): singularity $VERSION" --body "$(node scripts/version.js notes)")
-   sleep 15
-   gh pr checks "$PR" --repo "$REPO" --watch
-   gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
-   ```
-
-4. Wait for the Release workflow run that the merge started. It fails the command if the run fails.
-
-   ```bash
-   SHA=$(gh pr view "$PR" --repo "$REPO" --json mergeCommit -q .mergeCommit.oid)
-   until RUN=$(gh run list --repo "$REPO" --workflow release.yml --commit "$SHA" --json databaseId -q '.[0].databaseId') && [ -n "$RUN" ]; do sleep 5; done
-   gh run watch "$RUN" --repo "$REPO" --exit-status
-   ```
-
-5. Check the result on GitHub: the release is published, and `stable` points at the tagged commit, so both `ls-remote` lines show the same hash. Then remove the scratch clone.
-
-   ```bash
-   gh release view "$TAG" --repo "$REPO"
-   git ls-remote "https://github.com/$REPO.git" refs/heads/stable "refs/tags/$TAG^{}"
-   cd ~ && rm -rf "$WORK"
-   ```
-
-If the Release workflow fails part-way, fix the cause on `main` and run it again. It skips what already happened, such as an existing tag or a published release:
+If a step fails, the script says where the release stopped and the exact commands to continue or undo it. A Release workflow that failed part-way can be re-run once the cause is fixed on `main`; it skips whatever is already done:
 
 ```bash
 gh workflow run release.yml --repo hlistan/singularity --ref main

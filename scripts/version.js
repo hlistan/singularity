@@ -5,7 +5,12 @@
 //   node scripts/version.js bump <patch|minor|major|X.Y.Z> [--date YYYY-MM-DD]
 //                                                      move [Unreleased] into a new release and set the version
 //   node scripts/version.js notes [<version>]          print a release's changelog section (GitHub release body)
-//   node scripts/version.js current | tag              print the version, or its git tag
+//   node scripts/version.js current                    print the version
+//   node scripts/version.js next <patch|minor|major|X.Y.Z>
+//                                                      print the version a bump would set, changing nothing
+//   node scripts/version.js tag [<version>]            print the git tag of the version (default: the current one)
+//
+// scripts/release.sh runs a whole release with these.
 //
 // Rules and rationale: README.md, "Versions and releases".
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
@@ -164,6 +169,18 @@ switch (cmd) {
   case 'bump': { const date = opt('--date'); bump(rest[0], date); break; }
   case 'notes': notes(rest[0]); break;
   case 'current': console.log(manifest().version); break;
-  case 'tag': { const m = manifest(); console.log(tagFor(m, m.version)); break; }
-  default: die('usage: node scripts/version.js <check [--base ref] | bump <level> [--date d] | notes [version] | current | tag>');
+  case 'next': {
+    if (!rest[0]) die('usage: node scripts/version.js next <patch|minor|major|X.Y.Z>');
+    const cur = manifest().version, nv = next(cur, rest[0]);
+    if (compare(nv, cur) <= 0) die(`${nv} is not newer than ${cur}`);
+    console.log(nv);
+    break;
+  }
+  case 'tag': {
+    const m = manifest(), v = rest[0] || m.version;
+    if (!parse(v)) die(`"${v}" is not MAJOR.MINOR.PATCH`);
+    console.log(tagFor(m, v));
+    break;
+  }
+  default: die('usage: node scripts/version.js <check [--base ref] | bump <level> [--date d] | notes [version] | current | next <level> | tag [version]>');
 }
