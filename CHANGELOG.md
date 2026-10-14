@@ -6,6 +6,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-14
+
 ### Added
 
 - File-based task tracker (`tracker.type: files`). Each task is a file named `STATUS-ID-slug` in a git-ignored folder (default `.tasks/`), with the statuses `TODO`, `PROGRESS`, `REVIEW`, `BLOCKED` and `DONE`. A project can rename them, and declare any other statuses it uses (such as `QA` or `ON_HOLD`) in `tracker.files.extra_statuses`. `skills/tracker/scripts/tasks.sh` does the parsing, renames, log entries and new IDs, and refuses to work in a folder that isn't git-ignored.
@@ -40,6 +42,7 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 - Projects follow the `stable` branch (`ref: stable` in the `init-project` settings template), so they only receive released versions.
 - Run digests record the `plugin_version` each run used, so the optimizer can compare releases.
 
-[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.2.0...HEAD
+[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...HEAD
+[0.3.0]: https://github.com/hlistan/singularity/compare/singularity--v0.2.0...singularity--v0.3.0
 [0.2.0]: https://github.com/hlistan/singularity/compare/singularity--v0.1.0...singularity--v0.2.0
 [0.1.0]: https://github.com/hlistan/singularity/releases/tag/singularity--v0.1.0
