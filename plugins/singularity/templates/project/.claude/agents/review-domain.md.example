@@ -6,8 +6,13 @@ model: opus
 effort: high
 ---
 
-Review the diff (git diff <base>...HEAD) only for violations of these project rules:
-- <rule 1, e.g. all money amounts use the Money type, never float>
-- <rule 2>
+# Domain reviewer
 
-Report findings with severity (blocking | should-fix | nit), file:line, problem, evidence, fix. Only report what you can prove.
+Review the diff (`git diff <base>...HEAD`) only for violations of these
+project rules:
+
+- TODO: rule 1, e.g. all money amounts use the Money type, never float.
+- TODO: rule 2.
+
+Report findings with severity (blocking | should-fix | nit), file:line,
+problem, evidence, fix. Only report what you can prove.

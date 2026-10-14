@@ -1,0 +1,10 @@
+# Templates are copied into projects, which may lint with markdownlint's
+# defaults. Check them with every default rule, including the ones this
+# repository turns off for itself and the 80-column line length.
+config:
+  MD013:
+    line_length: 80
+  MD024: true
+  MD033: true
+  MD041: true
+  MD060: true

@@ -1,16 +1,18 @@
-# <Project name>
+# TODO: project name
 
 @.claude/singularity.md
 @.claude/singularity/experience/project.md
 
 ## What this project is
 
-<One paragraph: purpose, users, main components.>
+TODO: one paragraph on its purpose, its users and its main components.
 
 ## Architecture
 
-<Main modules and how they talk to each other. Where business logic lives. External services.>
+TODO: the main modules and how they talk to each other, where the business
+logic lives, and the external services it depends on.
 
 ## Conventions specific to this project
 
-<Anything that differs from or adds to the shared singularity engineering standards.>
+TODO: anything that differs from or adds to the shared singularity
+engineering standards.

@@ -60,9 +60,9 @@ First note each failure in a sentence (open coding), then group them into catego
   {
     key: 'experience',
     effort: 'medium',
-    prompt: `Audit the experience files (project.md, spec.md, plan.md, implement.md, review.md, verify.md, upstream.md). Report per file: line count; vague or non-actionable lessons; duplicates and contradictions; lessons with Seen 1 not reinforced for 60+ days; lessons ready to promote (Seen >= 3); upstream candidates. Quote the lesson ids.`,
+    prompt: `Audit the experience files (project.md, spec.md, plan.md, implement.md, review.md, verify.md, upstream.md). Report per file: the number of lessons (a lesson wrapped over several lines counts once); vague or non-actionable lessons; duplicates and contradictions; lessons with Seen 1 not reinforced for 60+ days; lessons ready to promote (Seen >= 3); upstream candidates. Quote the lesson ids.`,
     schema: obj({
-      files: arr(obj({ file: str, lines: num, vague: arr(str), duplicates: arr(str), contradictions: arr(str), stale: arr(str), promote: arr(str) })),
+      files: arr(obj({ file: str, lessons: num, vague: arr(str), duplicates: arr(str), contradictions: arr(str), stale: arr(str), promote: arr(str) })),
       upstream: arr(str),
       notes: str,
     }),

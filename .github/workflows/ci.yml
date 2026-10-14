@@ -48,7 +48,11 @@ jobs:
       - name: Lint Markdown
         uses: DavidAnson/markdownlint-cli2-action@v24
         with:
-          globs: '**/*.md'
+          # Templates are linted with markdownlint's defaults (plugins/singularity/templates/.markdownlint-cli2.yaml),
+          # including the agent examples that projects rename to .md.
+          globs: |
+            **/*.md
+            plugins/singularity/templates/**/*.md.example
 
       - name: Lint YAML
         run: pip install --quiet yamllint && yamllint -s .
@@ -83,6 +87,13 @@ jobs:
             /bin/bash tests/tracker-files.test.sh
           else
             bash tests/tracker-files.test.sh
+          fi
+      - name: Run the init-project git-ignore tests
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            /bin/bash tests/init-gitignore.test.sh
+          else
+            bash tests/init-gitignore.test.sh
           fi
 
   version:

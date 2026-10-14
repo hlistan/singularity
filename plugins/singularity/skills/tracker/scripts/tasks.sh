@@ -9,9 +9,9 @@
 #   list [STATE]                 status, id, slug and path of each task (tab-separated), in queue order
 #   get <ID|file>                key=value lines, a '---' line, then the file content
 #   next                         the first TODO task by priority then ID, like get, plus remaining=<n>
-#   move <ID|file> <STATE> [--from STATE]
+#   move <ID|file> <STATE> [--from STATE[,STATE...]]
 #                                rename the task to STATE's prefix and print the new path;
-#                                with --from, refuse unless the task is currently in that state
+#                                with --from, refuse unless the task is currently in one of those states
 #   comment <ID|file> <TEXT>     append "- <time> <text>" under a "## Log" heading
 #   create <slug> [TITLE]        new TODO task with the next free ID; body from stdin; prints the path
 #   validate                     check names, duplicate IDs, and that the directory is git-ignored
@@ -28,6 +28,8 @@
 #
 # STATE arguments accept a logical state (todo, in_progress, ...) or a status prefix (TODO, PROGRESS, QA, ...).
 # Default prefixes: todo=TODO in_progress=PROGRESS in_review=REVIEW blocked=BLOCKED done=DONE.
+# States other than todo may share a prefix (in_review=PROGRESS: moving to review then keeps the name).
+# todo needs a prefix of its own, because claiming a task relies on renaming it out of the queue.
 # Extra statuses have no logical state (get prints state= empty); files with undeclared prefixes are
 # ignored, and validate reports them, so a typo such as TOD0 is caught instead of becoming a status.
 # A task's priority is an optional "priority: <number>" line in YAML front matter; lower comes first.
@@ -42,11 +44,16 @@ set -u
 DIR=".tasks"
 ID_PREFIX="T"
 NOW=""
-S_TODO="TODO"
-S_IN_PROGRESS="PROGRESS"
-S_IN_REVIEW="REVIEW"
-S_BLOCKED="BLOCKED"
-S_DONE="DONE"
+DEFAULT_TODO="TODO"
+DEFAULT_IN_PROGRESS="PROGRESS"
+DEFAULT_IN_REVIEW="REVIEW"
+DEFAULT_BLOCKED="BLOCKED"
+DEFAULT_DONE="DONE"
+S_TODO="$DEFAULT_TODO"
+S_IN_PROGRESS="$DEFAULT_IN_PROGRESS"
+S_IN_REVIEW="$DEFAULT_IN_REVIEW"
+S_BLOCKED="$DEFAULT_BLOCKED"
+S_DONE="$DEFAULT_DONE"
 EXTRA_PREFIXES=""
 STATES="todo in_progress in_review blocked done"
 NO_PRIORITY=1000
@@ -82,8 +89,26 @@ prefix_of_state() {
   esac
 }
 
+default_prefix_of_state() {
+  case "$1" in
+    todo) printf '%s' "$DEFAULT_TODO" ;;
+    in_progress) printf '%s' "$DEFAULT_IN_PROGRESS" ;;
+    in_review) printf '%s' "$DEFAULT_IN_REVIEW" ;;
+    blocked) printf '%s' "$DEFAULT_BLOCKED" ;;
+    done) printf '%s' "$DEFAULT_DONE" ;;
+  esac
+}
+
+# prefix -> logical state. When states share a prefix, the state whose default prefix it is wins
+# (PROGRESS stays in_progress under in_review=PROGRESS); otherwise the first state in $STATES order.
 state_of_prefix() {
   local s
+  for s in $STATES; do
+    if [ "$(prefix_of_state "$s")" = "$1" ] && [ "$(default_prefix_of_state "$s")" = "$1" ]; then
+      printf '%s' "$s"
+      return 0
+    fi
+  done
   for s in $STATES; do
     if [ "$(prefix_of_state "$s")" = "$1" ]; then
       printf '%s' "$s"
@@ -93,16 +118,21 @@ state_of_prefix() {
   return 1
 }
 
+# Distinct status prefixes: the five states' (shared ones once), then the extra statuses.
 all_prefixes() {
-  local s out=""
-  for s in $STATES; do out="$out $(prefix_of_state "$s")"; done
-  out="$out $EXTRA_PREFIXES"
+  local s p out=" "
+  for s in $STATES; do
+    p="$(prefix_of_state "$s")"
+    case "$out" in *" $p "*) ;; *) out="$out$p " ;; esac
+  done
+  out="$out$EXTRA_PREFIXES"
   out="${out# }"
   printf '%s' "${out% }"
 }
 
 # True for the five configured prefixes and the extra statuses.
 is_status() {
+  [ -n "$1" ] || return 1
   state_of_prefix "$1" >/dev/null && return 0
   case " $EXTRA_PREFIXES " in *" $1 "*) return 0 ;; esac
   return 1
@@ -140,10 +170,16 @@ add_extra_status() {
   EXTRA_PREFIXES="${EXTRA_PREFIXES:+$EXTRA_PREFIXES }$1"
 }
 
-check_distinct_prefixes() {
-  local seen=" " p
-  for p in $(all_prefixes); do
-    case "$seen" in *" $p "*) die 2 "status prefix $p used twice" ;; esac
+check_prefixes() {
+  local s p seen=" "
+  for s in in_progress in_review blocked "done"; do
+    if [ "$(prefix_of_state "$s")" = "$S_TODO" ]; then
+      die 2 "todo's prefix $S_TODO can't be shared with $s: claiming a task renames it out of $S_TODO, so the queue needs a prefix of its own"
+    fi
+  done
+  for s in $STATES; do seen="$seen$(prefix_of_state "$s") "; done
+  for p in $EXTRA_PREFIXES; do
+    case "$seen" in *" $p "*) die 2 "status prefix $p used twice: an extra status must differ from the others and from the five states' prefixes" ;; esac
     seen="$seen$p "
   done
 }
@@ -296,15 +332,21 @@ cmd_next() {
 }
 
 cmd_move() {
-  [ $# -ge 2 ] || die 2 "usage: move <ID|file> <STATE> [--from STATE]"
-  local ref="$1" to from="" target
+  [ $# -ge 2 ] || die 2 "usage: move <ID|file> <STATE> [--from STATE[,STATE...]]"
+  local ref="$1" to from="" target state p
   to="$(resolve_prefix "$2")" || exit $?
   shift 2
   while [ $# -gt 0 ]; do
     case "$1" in
       --from)
         [ $# -ge 2 ] || die 2 "--from needs a state"
-        from="$(resolve_prefix "$2")" || exit $?
+        [ -n "$2" ] || die 2 "--from needs a state"
+        from=""
+        for state in $(printf '%s' "$2" | tr ',' ' '); do
+          p="$(resolve_prefix "$state")" || exit $?
+          from="${from:+$from }$p"
+        done
+        [ -n "$from" ] || die 2 "--from needs a state"
         shift 2
         ;;
       *) die 2 "unexpected argument '$1'" ;;
@@ -312,8 +354,16 @@ cmd_move() {
   done
   require_dir
   find_task "$ref"
-  if [ -n "$from" ] && [ "$F_STATUS" != "$from" ]; then
-    die 5 "$F_ID is $F_STATUS, expected $from (taken by another session?)"
+  if [ -n "$from" ]; then
+    case " $from " in
+      *" $F_STATUS "*) ;;
+      *)
+        case "$from" in
+          *" "*) die 5 "$F_ID is $F_STATUS, expected one of $from (taken by another session?)" ;;
+          *) die 5 "$F_ID is $F_STATUS, expected $from (taken by another session?)" ;;
+        esac
+        ;;
+    esac
   fi
   target="$DIR/$to-$F_ID-$F_SLUG$F_EXT"
   if [ "$F_PATH" != "$target" ]; then
@@ -413,7 +463,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ "$DIR" = "/" ] || DIR="${DIR%/}"
-check_distinct_prefixes
+check_prefixes
 
 [ $# -ge 1 ] || { usage >&2; exit 2; }
 command="$1"

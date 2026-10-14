@@ -61,7 +61,7 @@ Input: the evidence pack path, scope (`project` or `shared`), and an optional fo
 
 ## Mode: implement
 
-Input: the approved proposal ids. On the optimization branch, implement each one as **one commit** (`singularity-optimize: O-… <title>`) containing only the described change. Append each to `optimizations.md` with status `validating` (format in that file's header).
+Input: the approved proposal ids. On the optimization branch, implement each one as **one commit** (`singularity-optimize: O-… <title>`) containing only the described change. Append each to `optimizations.md` with status `validating`, in the format in that file's header and wrapped at 80 columns, since projects lint it with markdownlint.
 
 ## Mode: check-contracts
 

@@ -23,4 +23,13 @@ Templates are in `${CLAUDE_PLUGIN_ROOT}/templates/`. Create the following in the
 7. **Optional**, only if the user wants them: the hook scripts in `project/.claude/singularity/hooks/` (make them executable), and the examples `custom-implementer.md.example`, `review-domain.md.example` and `dependency-upgrade.js.example`.
 8. Add `work_dir` (default `.agentic/work/`) to `.gitignore` unless the user wants specs and plans committed.
 
+9. **Check that the shared files will be committed.** Many repositories ignore `.claude`, and then everything above would silently stay on this machine.
+   1. Run `git check-ignore -- <paths>` on every file the team shares: `CLAUDE.md`, `.claude/singularity.md`, `.claude/settings.json`, one file each in `.claude/singularity/experience/` and `.claude/singularity/evals/`, and any agent, skill, workflow or hook script you created. It prints each ignored path, and nothing when none is. (Don't add `-q`: it accepts only one path.) If it prints nothing, this step is done.
+   2. Run `git check-ignore -v -- <the printed paths>` to find the rule behind each one (`source:line:pattern`), so you can tell the user why.
+   3. If `git check-ignore -q -- .claude/` succeeds, the whole directory is ignored, and a single `!` exception can't re-include a file inside it. Append `${CLAUDE_PLUGIN_ROOT}/templates/project/gitignore-claude.txt` to `.gitignore`: it re-includes the directory, ignores what's in it, and re-includes only the shared paths, so personal files such as `settings.local.json` stay local. This works whether the rule is in `.gitignore`, `.git/info/exclude` or a global excludes file.
+   4. Otherwise a narrower rule matched: append one exception per printed path, `!/<path>`.
+   5. Show the user the `.gitignore` change and the rule it works around before writing it. Then run step 1 again and confirm it prints nothing, and confirm `work_dir`, the task folder (files tracker) and `.claude/settings.local.json` are ignored; add any that isn't.
+
+   `tests/init-gitignore.test.sh` in the singularity repository runs this procedure against each way a repository can ignore `.claude`.
+
 Finish by listing the files created, the TODOs left, and telling the user to commit them so the whole team gets the setup.

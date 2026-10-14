@@ -30,6 +30,8 @@ Each task is one file in `files.dir`, named `<STATUS>-<ID>-<slug>`, with an opti
 | `blocked` | `BLOCKED` |
 | `done` | `DONE` |
 
+States can share a prefix: `{ in_review: PROGRESS }` skips a separate review status, so moving a task to review leaves its name unchanged. Only `todo` needs a prefix of its own, because claiming a task works by renaming it out of the queue.
+
 **Custom statuses.** A team can use any other statuses it needs (for example `QA`, `DESIGN`, `ON_HOLD`) by listing them in `extra_statuses`: upper-case letters, digits and `_`. They work everywhere a status does (`list QA`, `move T4 QA`, `move T4 done --from QA`), and `get` prints an empty `state=` for them because they have no meaning to the pipeline. The pipeline never moves a task into a custom status on its own; do it when the user asks. Files whose prefix isn't declared are ignored, and `validate` reports them, so a typo such as `TOD0-T4-…` doesn't silently drop a task from the queue. To make the pipeline use a custom status for one of its own steps, map it in `statuses` instead, for example `{ in_review: QA }`.
 
 The ID is letters, digits and `_` (no `-`). The file content is the ticket: free text or Markdown, whose first level-1 heading (`# Title`) is the title. Optional front matter sets the queue order (lower `priority` first, then the lowest ID number) and can say what kind of work it is:
@@ -67,6 +69,7 @@ Exit codes: `1` validation problems or directory not git-ignored, `2` usage erro
 - **get**: `get <ID>`. A file name or path works too. Output: `key=value` lines (`status`, `state`, `id`, `slug`, `title`, `priority`, `path`), a `---` line, then the file content. Exit `4` means two files share the ID: ask the user which one is meant.
 - **next**: `next` prints the first `TODO` task in queue order the same way, plus `remaining=<n>`. Exit `3` means the queue is empty: tell the user.
 - **move**: `move <ID> <state>`. When work **starts** on a task, always claim it with `move <ID> in_progress --from todo`. Exit `5` means another session took it first: after `next`, run `next` again; for an ID the user gave, tell them.
+- **resume**: when the user confirms resuming a task that is already `in_progress`, `blocked` or `in_review`, use `move <ID> in_progress --from in_progress,blocked,in_review`. It still refuses a task that has meanwhile moved to another state, such as one another session finished. Never rename files by hand to resume.
 - **comment**: `comment <ID> "<text>"` appends a timestamped line under a `## Log` heading in the task file. One line, no secrets.
 - **link**: `comment <ID> "Link: <url>"`.
 - **create**: `create <slug> "<title>"`, with the body on standard input. Only on the user's explicit request.

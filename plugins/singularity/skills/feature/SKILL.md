@@ -34,20 +34,29 @@ One exception: **fix rounds** of the implement role (blocking review findings in
 
 **Ticket.** Use the singularity `tracker` skill:
 
-- If the request is `next` (or empty), `next()` picks the ticket. Trackers without a queue don't support it: ask the user which ticket to take.
-- Then `get(ticket)` and `move(ticket, in_progress)`. For the files tracker this move is a claim. If another session took the task first, run `next()` again (when the request was `next`) or tell the user (when they named the task).
+- If the request is `next` (or empty), `next()` picks the ticket. Trackers without a queue don't support it: ask the user which ticket to take. `next` only starts new work; it never resumes a task.
+- Then `get(ticket)`. A ticket waiting to be started (`todo`, or a tracker without that state) gets `move(ticket, in_progress)`. For the files tracker this move is a claim. If another session took the task first, run `next()` again (when the request was `next`) or tell the user (when they named the task).
+- A ticket the user named that is already `in_progress`, `blocked` or `in_review` was started before, by this or another session. Show its status and the last lines of its log or comments, and ask whether to **resume** it, because another session may still be working on it. Only on a yes: `move(ticket, in_progress)` (the files tracker checks it is still in one of those states), `comment(ticket, "Resumed")`, then continue as described under **Resuming**. In unattended runs, don't resume: report the ticket's state and stop.
+- A ticket that is `done`: tell the user and stop, unless they ask to reopen it.
 - If `tracker.type` is `none` or the request is plain text, use the text as the ticket.
 
-**Work dir.** Pick a kebab-case `<slug>` that includes the ticket ID if there is one. Create `<work_dir>/<slug>/` (default `.agentic/work`). Note the start time with `date -u +%FT%TZ`.
+**Work dir.** The `<slug>` is the ticket ID in lower case, a hyphen, and a short kebab-case name (for task files, the task's own slug), for example `t7-fix-login`; a plain-text request gets just the name. Create `<work_dir>/<slug>/` (default `.agentic/work`). With the files tracker, `comment(ticket, "Started: <work dir path>")`. Note the start time with `date -u +%FT%TZ`.
 
-Keep a **run record** as you go. The learner turns it into the digest the optimizer works from, so record facts, not impressions:
+Keep a **run record** in `<work_dir>/<slug>/run.json`, and write it after every stage and gate, so a run that crashes can be resumed and still learned from. The learner turns it into the digest the optimizer works from, so record facts, not impressions:
 
+- each stage as it finishes (`spec`, `plan`, `implement`, `review`, `verify`, `handoff`), and each gate the user approves;
 - for each stage, its duration (`date` before and after) and its tokens if the agent result reports them;
 - the model each role actually ran on;
 - `plugin_version`: the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. If `${CLAUDE_PLUGIN_ROOT}` is not inside Claude Code's plugins directory (a path containing `/plugins/cache/` or `/plugins/marketplaces/`), the plugin is a `--plugin-dir` checkout that may hold unreleased changes: append `+dev`;
 - whether the user edited the spec or plan at the gates, and what kind of edit it was;
 - review rounds, and every confirmed and rejected finding (lens, severity, location, one-line problem);
 - whether verification passed first time.
+
+**Resuming.** If a work dir for this ticket already exists (`<work_dir>/<ticket id in lower case>-*/`), continue in it instead of starting over:
+
+- Read its `run.json` and continue from the first stage not marked done. Without a `run.json` (a run from before 0.4.0), infer the stage from the files: no `spec.md` → step 1; no `plan.md` → step 2; unchecked steps in `plan.md` → step 3, with only those steps; no `review.md` → step 4; no `summary.md` → step 5.
+- Tell the user which stage you are resuming from. A gate that `run.json` doesn't record as approved is shown again before going past it.
+- Keep the existing `spec.draft.md` and `plan.draft.md`: the learner compares them with the final versions.
 
 ## 1. Spec (gate)
 

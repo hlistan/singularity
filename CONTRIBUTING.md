@@ -37,7 +37,7 @@ To try your changes in a project: `claude --plugin-dir /path/to/singularity/plug
 
 1. `claude plugin validate --strict .` passes.
 2. `pre-commit run --all-files` passes (lint, shellcheck, markdownlint, gitleaks, sensitive-info check, version check).
-3. `node scripts/check-evals.js` passes (CI runs it too). If you changed the task-file script, `bash tests/tracker-files.test.sh` passes; on macOS, run it with `/bin/bash` too, since CI tests bash 3.2.
+3. `node scripts/check-evals.js` passes (CI runs it too). If you changed the task-file script or the init-project git-ignore procedure, `bash tests/tracker-files.test.sh` and `bash tests/init-gitignore.test.sh` pass; on macOS, run them with `/bin/bash` too, since CI tests bash 3.2. Template Markdown must pass markdownlint's defaults, including the 80-column limit: `plugins/singularity/templates/.markdownlint-cli2.yaml` sets them, and CI checks it.
 4. If you changed anything under `plugins/singularity/` other than eval cases, add a line under `## [Unreleased]` in `CHANGELOG.md`, starting with **Breaking:** if projects must change something. Leave the version alone: it changes only in release PRs. `node scripts/version.js check --base origin/main` runs the same check as CI.
 5. For agent, skill or workflow changes: run the eval suite once (`plugins/singularity/evals/README.md`) and paste the summary table in the PR. It costs real model calls; use `--case` and `--runs 1` while iterating.
 6. Describe the change as a contract where it affects behaviour: what it should fix, what it might break, how you checked.
