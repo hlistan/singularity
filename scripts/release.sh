@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Release the plugin in one command, from an up-to-date main to a published GitHub release.
 #
-#   scripts/release.sh [--dry-run] [--yes] [--date YYYY-MM-DD] <patch|minor|major|X.Y.Z>
+#   scripts/release.sh [--dry-run] [--yes] [--admin] [--date YYYY-MM-DD] <patch|minor|major|X.Y.Z>
 #
 # It checks the tools, your access, that you're on a clean main that matches GitHub, that CI passed there
 # and that CHANGELOG.md has something under [Unreleased]. Then it bumps the version on release/<version>,
@@ -50,6 +50,9 @@ Options:
   -n, --dry-run    check everything and show the release plan, then stop; it only
                    fast-forwards $BASE if GitHub's is ahead
   -y, --yes        don't ask for confirmation (needed when there is no terminal)
+      --admin      once every check on the pull request has passed, merge it with your ruleset
+                   bypass (gh pr merge --admin) instead of waiting for an approving review;
+                   for maintainers on the bypass list who can't get a review from someone else
       --date DATE  release date in the changelog, YYYY-MM-DD (default: today, UTC)
   -h, --help       show this help
 EOF
@@ -139,12 +142,13 @@ wait_merged() {
 }
 
 main() {
-  local level='' dry_run=0 yes=0 date='' answer tool url perm branch ci ci_id ci_status ci_conclusion
+  local level='' dry_run=0 yes=0 admin=0 date='' answer tool url perm branch ci ci_id ci_status ci_conclusion
   local out head notes current changed release_url tagged stable
   while [ $# -gt 0 ]; do
     case "$1" in
       -n | --dry-run) dry_run=1 ;;
       -y | --yes) yes=1 ;;
+      --admin) admin=1 ;;
       --date) [ $# -ge 2 ] || die "--date needs a value, YYYY-MM-DD"; date=$2; shift ;;
       --date=*) date=${1#--date=} ;;
       -h | --help) usage; exit 0 ;;
@@ -240,6 +244,7 @@ $out"
 
   step "Release plan: $NAME $current -> $VERSION"
   info "$level release, tag $TAG, pull request from $BRANCH into $BASE"
+  if [ "$admin" -eq 1 ]; then info "merge: with your ruleset bypass, once every check has passed"; fi
   printf '\n'
   printf '%s\n' "$notes" | sed 's/^/    /'
   if [ "$dry_run" -eq 1 ]; then
@@ -284,15 +289,19 @@ $out"
   gh pr checks "$PR_URL" --repo "$REPO" --watch --fail-fast --interval 10
 
   step "Merging the release pull request"
-  if out=$(gh pr merge "$PR_URL" --repo "$REPO" --squash 2>&1); then
+  if [ "$admin" -eq 1 ]; then
+    out=$(gh pr merge "$PR_URL" --repo "$REPO" --squash --admin 2>&1) \
+      || die "GitHub refused the bypass merge ($(printf '%s\n' "$out" | tail -n 1)): are you on the ruleset's bypass list?"
+    info "merged with your bypass permission, after every check passed"
+  elif out=$(gh pr merge "$PR_URL" --repo "$REPO" --squash 2>&1); then
     info "merged"
   else
-    out=$(printf '%s\n' "$out" | tail -n 1)
+    info "GitHub can't merge it yet: $(printf '%s\n' "$out" | tail -n 1)"
     if gh pr merge "$PR_URL" --repo "$REPO" --squash --auto >/dev/null 2>&1; then
-      info "GitHub can't merge it yet ($out). Auto-merge is on: it merges as soon as the requirements are met"
-    else
-      info "GitHub can't merge it yet ($out). Merge it on GitHub and this carries on: $PR_URL"
+      info "Auto-merge is on, so it merges once someone else approves it (authors can't approve their own pull requests)."
     fi
+    info "If you're on the ruleset's bypass list, merge it on GitHub by ticking \"Merge without waiting for requirements"
+    info "to be met\", and this carries on. Next time, run with --admin."
   fi
   wait_merged
   MERGE_SHA=$(gh pr view "$PR_URL" --repo "$REPO" --json mergeCommit -q .mergeCommit.oid)

@@ -174,7 +174,7 @@ Run one command from an up-to-date `main`:
 scripts/release.sh minor
 ```
 
-The level is `patch`, `minor` or `major`, chosen with the [table above](#what-the-version-means), or an explicit `X.Y.Z`. `--dry-run` checks everything and shows the plan, then stops; it changes nothing except fast-forwarding `main` if GitHub's is ahead. `--yes` skips the confirmation, and `--date YYYY-MM-DD` sets the changelog date (default: today, UTC). The script needs `git`, Node.js, and `gh` signed in to github.com with write access to the repository.
+The level is `patch`, `minor` or `major`, chosen with the [table above](#what-the-version-means), or an explicit `X.Y.Z`. `--dry-run` checks everything and shows the plan, then stops; it changes nothing except fast-forwarding `main` if GitHub's is ahead. `--yes` skips the confirmation, and `--date YYYY-MM-DD` sets the changelog date (default: today, UTC). `--admin` is for maintainers on the ruleset's bypass list who have no one else to approve: GitHub never lets authors approve their own pull requests, so once every check on the pull request has passed, it merges with the bypass (`gh pr merge --admin`) instead of waiting for a review. The script needs `git`, Node.js, and `gh` signed in to github.com with write access to the repository.
 
 It stops at the first problem, and does this:
 
@@ -188,7 +188,7 @@ It stops at the first problem, and does this:
 2. **Shows the plan** (versions, tag, release notes) and asks you to confirm.
 3. **Bumps the version** on `release/<version>` with `node scripts/version.js bump`, checks that only `CHANGELOG.md` and `plugin.json` changed, commits `chore(release): singularity <version>` and pushes the branch.
 4. **Opens the release pull request**, with the release notes as its description, and waits for its checks.
-5. **Squash-merges it.** If `main` needs an approving review, it turns on auto-merge, or asks you to merge on GitHub, and waits until the pull request is merged.
+5. **Squash-merges it.** If `main` needs an approving review, it merges with your bypass when you passed `--admin`. Otherwise it turns on auto-merge for someone else's approval, tells you how to merge with the bypass on GitHub, and waits until the pull request is merged.
 6. **Follows the Release workflow** run for the merge commit until it finishes.
 7. **Checks the result:** the GitHub release is published, and the tag and `stable` point at the same commit.
 8. **Updates your `main`**, fetches the tag, and deletes the release branch locally and on GitHub.
