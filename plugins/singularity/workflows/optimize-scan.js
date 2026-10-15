@@ -18,7 +18,7 @@ const today = A.today || 'unknown (use the latest date in the data)'
 const common = `Sources:
 ${where}
 Today: ${today}. ${A.focus ? `Focus: ${A.focus}.` : ''}
-runs.jsonl holds one JSON object per line: "type":"run" lines (pipeline runs, with the guidelines each run added, changed or removed), "type":"human_review" lines (escaped defects found by human reviewers) and "type":"curation" lines (guidelines the optimizer wrote). A finding's "guideline" is the one written for it; "covered_by" is an existing guideline that should have prevented it.
+runs.jsonl holds one JSON object per line: "type":"run" lines (pipeline runs, with their review "findings", their other "defects", and the guidelines each run added, changed or removed), "type":"correction" lines (the user told an agent it did something wrong), "type":"human_review" lines (escaped defects found by human reviewers, where the project turns that on) and "type":"curation" lines (guidelines the optimizer wrote). Guidelines change only for defects whose root cause is a weak guideline and for user corrections. Each finding, defect, correction and escaped defect has a "cause" (guideline-missing, guideline-wrong, guideline-unclear, guideline-ignored or not-guideline) and an "action" (added, changed, removed, moved, check-proposed, pending or recorded); "guideline" is the one written for it, "covered_by" an existing guideline it was ignored against, and "confirms" the earlier pending entries it confirmed.
 The agents follow guidelines: .claude/singularity/guidelines/*.md and the path-scoped rules in .claude/rules/singularity/, in each source's repository. The experience dir is the record, which the agents don't read.
 Read only: change nothing, and run nothing but read-only commands such as git log. Cite refs (ticket, slug or date) for every claim. If a source has no data for your stream, say so instead of guessing.`
 
@@ -33,7 +33,7 @@ const streams = [
     key: 'metrics',
     effort: 'medium',
     prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer).
-Quality: blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, escaped defects per run (human_review lines), rejected-findings rate (reviewer false positives), and the share of runs whose change a later run had to fix ("fixes" in later run lines: the pipeline's change-failure rate).
+Quality: blocking findings per run, review rounds per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, user corrections per run (correction lines, by role), escaped defects per run (human_review lines and later-fix defects), rejected-findings rate (reviewer false positives), and the share of runs whose change a later run had to fix ("fixes" in later run lines: the pipeline's change-failure rate).
 Flow: median lead time (lead_s), flow efficiency (active_s divided by lead_s: the share of the lead time spent working rather than waiting), median wait at each gate (gate_wait_s), median time from PR/MR to merge where human_review lines allow it, fix rounds per run, runs that stopped early and why ("stopped"), and median seconds and tokens per stage, with each stage's share of the total.
 Note any change of models or plugin_version between the windows (older lines may say plugin_rev; a +dev suffix means an unreleased checkout).`,
     schema: obj({
@@ -47,15 +47,18 @@ Note any change of models or plugin_version between the windows (older lines may
   {
     key: 'failures',
     effort: 'high',
-    prompt: `Build a failure taxonomy (error analysis). Sources: the "findings" in run lines and "escaped" in human_review lines of runs.jsonl, plus review.md and human-review.md files under the work dirs if present.
-First note each failure in a sentence (open coding), then group them into categories (axial coding) and count them. For each category give: the stage at fault (spec | plan | implement | review | verify | protocol | tooling | config), severity mix, example refs, whether a guideline already covers it (quote its id), whether the category recurred AFTER that guideline was added or last changed (from the "guidelines" fields, and "guideline" and "covered_by" on findings and escaped defects: the guideline isn't working), and whether an eval case exists for it in the evals dir.
+    prompt: `Build a failure taxonomy (error analysis). Sources: the "findings" and "defects" in run lines, correction lines, and "escaped" in human_review lines of runs.jsonl, plus review.md and human-review.md files under the work dirs if present.
+First note each failure in a sentence (open coding), then group them into categories (axial coding) and count them. For each category give: the stage at fault (spec | plan | implement | review | verify | protocol | tooling | config), severity mix, how many were user corrections, example refs, the causes recorded and how often, whether a guideline already covers it (quote its id), whether the category recurred AFTER that guideline was added or last changed (from the "guidelines" fields, and "guideline" and "covered_by" on the entries: the guideline isn't working, and a check should replace it), and whether an eval case exists for it in the evals dir.
+Separately, list the categories still "pending" (only a model confirmed them) with how often each occurred, and whether the learn job acted when one recurred; and the guidelines that entries were ignored against ("guideline-ignored"), with counts.
 Also say where the fix belongs: "project" (this project's config, context, guidelines or agents), "plugin" (the shared singularity plugin: an agent, skill, workflow, standard, template or default that would cause the same failure in any project; name the file), or "unclear".${A.pluginRoot ? ` The shared plugin is at ${A.pluginRoot}.` : ''}`,
     schema: obj({
       categories: arr(obj({
         name: str, count: num, escaped: num, stageAtFault: str, severities: str, examples: arr(str),
-        coveredByGuideline: str, recurredAfterGuideline: bool, hasEvalCase: bool,
+        corrections: num, causes: str, coveredByGuideline: str, recurredAfterGuideline: bool, hasEvalCase: bool,
         fixBelongs: { type: 'string', enum: ['project', 'plugin', 'unclear'] }, component: str,
       })),
+      pending: arr(obj({ category: str, role: str, count: num, actedOn: bool, refs: arr(str) })),
+      ignored: arr(obj({ guideline: str, count: num, refs: arr(str) })),
       notes: str,
     }),
   },
@@ -75,7 +78,7 @@ Also say where the fix belongs: "project" (this project's config, context, guide
   {
     key: 'corrections',
     effort: 'medium',
-    prompt: `Analyse what humans corrected at the approval gates: compare spec.draft.md with spec.md and plan.draft.md with plan.md in the work dirs where both exist, and use "gate_edit_kinds" in run lines. Group the corrections into kinds and count them per role.`,
+    prompt: `Analyse what humans corrected: at the approval gates (compare spec.draft.md with spec.md and plan.draft.md with plan.md in the work dirs where both exist, and use "gate_edit_kinds" in run lines), and in their prompts (correction lines in runs.jsonl: role, category, scope and cause). Group the corrections into kinds and count them per role. Say which kinds keep coming back after a guideline was written for them.`,
     schema: obj({ kinds: arr(obj({ role: str, kind: str, count: num, examples: arr(str) })), notes: str }),
   },
   {

@@ -50,6 +50,8 @@ Users land on /home instead of the page they asked for.
 
 Always go through the tasks script; its path is in the tracker's `SKILL.md`. Run it from the project root as `bash "<path>" [options] <command>`. Never rename, create or edit task files by hand: the script keeps names valid, IDs unique and claims atomic.
 
+**In a worktree** (a session started with `claude --worktree`, for example, to run in parallel with another), the task folder is git-ignored, so the worktree has no copy of it, and a copy wouldn't share claims anyway. Use the main checkout's folder: when `git rev-parse --git-dir` and `git rev-parse --git-common-dir` differ, run the script there, `(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && bash "<path>" [options] <command>)`. Claims stay atomic across every worktree, because they all rename files in that one folder.
+
 Options, built from the config:
 
 - `--dir <files.dir>` if set;

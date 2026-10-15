@@ -29,4 +29,6 @@ Write the spec to the path you were given (normally `<work_dir>/<slug>/spec.md`)
 - **Non-functional requirements**: performance, security, compatibility, migrations. Only what applies.
 - **Open questions**: anything ambiguous, each with your proposed default. Never resolve ambiguity silently.
 
+When you are told the change is **small**, write only the goal, a one-line problem, the acceptance criteria with their boundary and failure cases, and the open questions: there is no plan stage, so the implementer works from the acceptance criteria directly. If the request turns out to need more than a few files in one area, or touches authentication, authorization, payments, personal data, migrations, public contracts or dependencies, say in your summary that it isn't small.
+
 Return a short summary: the acceptance criteria count, and the open questions verbatim.

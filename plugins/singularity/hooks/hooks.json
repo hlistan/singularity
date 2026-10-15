@@ -7,6 +7,27 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/corrections.sh capture" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/corrections.sh remember" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/subagent-stop.sh", "timeout": 3600 }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -14,11 +35,17 @@
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/guard-bash.sh" },
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/project-hook.sh pre-bash" }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/test-guard.sh pre-edit" }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/project-hook.sh post-edit" }
         ]

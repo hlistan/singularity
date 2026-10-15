@@ -1,0 +1,20 @@
+# Phrases that usually mean the user is correcting what an agent just did.
+# Extended regular expressions, one per line, matched case-insensitively
+# against the prompt. A match only queues the prompt for the learn job, which
+# decides whether it really corrects an agent: keep the net wide.
+# A project adds its own phrases, for example in its team's language, in
+# .claude/singularity/correction-patterns.txt, in the same format.
+^[[:space:]]*(no|nope|wrong|stop|undo|revert)[[:space:]]*([,.!;:]|$)
+(^|[^[:alnum:]_])(that|this|it)( is|'s|’s| was)? (wrong|incorrect|not right|not correct|broken)
+(^|[^[:alnum:]_])(is|are|was|were) (still )?(wrong|incorrect|broken)
+(^|[^[:alnum:]_])not what (i|we) (asked|wanted|meant|said)
+(^|[^[:alnum:]_])(you|it) (broke|deleted|removed|ignored|forgot|missed|skipped|overwrote|reverted)
+(^|[^[:alnum:]_])why (did|do|would) you
+(^|[^[:alnum:]_])(don[^[:space:]]{0,3}t|do not|never) (use|add|do|touch|change|create|delete|remove|edit|modify|write|run|call|put|commit|import|mock|hardcode|skip)
+(^|[^[:alnum:]_])(we|i) (always|never|don[^[:space:]]{0,3}t) (use|do|put|write|call|import)
+(^|[^[:alnum:]_])(use|should use|should be using) [^.]{1,40} instead
+(^|[^[:alnum:]_])instead of (using|writing|calling|adding|creating)
+(^|[^[:alnum:]_])(should(n[^[:space:]]{0,3}t| not)|must not) have
+(^|[^[:alnum:]_])(revert|undo|roll ?back) (that|this|it|the|your|those|these)
+(^|[^[:alnum:]_])(still|again) (wrong|broken|failing|not working)
+(^|[^[:alnum:]_])(that|this) (is|was) not how (we|it)

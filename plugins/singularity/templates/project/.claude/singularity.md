@@ -72,17 +72,33 @@ review:
   lenses: [correctness, security, maintainability, testability]
   # - { name: performance, description: "N+1 queries, missing pagination" }
   extra_lenses: []
-  extra_reviewers: []       # project agents, e.g. [review-domain]
+  extra_reviewers: []       # project agents, e.g. [review-domain]; can block
+  # Only these lenses can block a change; the others advise, reporting at
+  # most should-fix, on a cheaper model.
+  blocking_lenses: [correctness, security]
+  # advisory: { model: sonnet, effort: high }
+
+# Checks the pipeline runs itself; pass and fail come from exit codes.
+checks:
+  run: [build, lint, typecheck, test]   # names from `commands`
+  implement_gate: true      # the implementer can't finish while checks fail
+  stop_retries: 3           # ...for at most this many attempts
+  # test_pattern: "(^|/)tests/"   # paths of tests, if the defaults miss
+  #                                # yours (frozen and existing tests)
 
 stages:                     # project agents inserted into the shared pipeline
   after_plan: []
   after_implement: []
   before_handoff: []
 
+# Guidelines change only for defects caused by a weak guideline, and for
+# user corrections, which a hook captures from prompts.
 learning:
   enabled: true
   dir: .claude/singularity/experience   # the record: run digests, archive
   max_lines_per_file: 60    # guidelines per file; a wrapped one counts once
+  corrections: true         # false: don't capture corrections from prompts
+  pr_reviews: false         # true: learn from human PR/MR review comments
 
 optimization:
   # Offer an optimizer run after this many pipeline runs; 0: never.
