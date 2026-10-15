@@ -102,6 +102,25 @@ jobs:
           else
             bash tests/check-guidelines.test.sh
           fi
+      - name: Run the user-correction capture tests
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            /bin/bash tests/corrections.test.sh
+          else
+            bash tests/corrections.test.sh
+          fi
+      - name: Run the command guard tests
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            /bin/bash tests/guard-bash.test.sh
+          else
+            bash tests/guard-bash.test.sh
+          fi
+      - name: Run the checks, stop gate, test guard and change diff tests
+        run: |
+          for t in tests/run-checks.test.sh tests/test-guard.test.sh tests/change-diff.test.sh; do
+            if [ "$RUNNER_OS" = "macOS" ]; then /bin/bash "$t"; else bash "$t"; fi || exit 1
+          done
 
   version:
     name: Version and changelog

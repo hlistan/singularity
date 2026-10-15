@@ -31,7 +31,7 @@ Read the goals, the evidence pack, `optimizations.md`, the current config, the c
    - the contract fields;
    - a diff sketch (file and exact lines);
    - the validation plan, with an eval cost estimate.
-3. Act on the context and guideline audits: stale, wrong or missing guidelines are a tier-1 proposal, handled as in `onboard.md` ("Refreshing the context"); a guideline that a check could enforce is a proposal for that check; a guideline that keeps failing (its category recurs after it was added or changed, per `runs.jsonl`) is rewritten or replaced by a check.
+3. Act on the context and guideline audits: stale or wrong guidelines are a tier-1 proposal, handled as in `onboard.md` ("Refreshing the context"); a guideline that a check could enforce is a proposal for that check; a guideline that keeps failing (its category recurs after it was added or changed, or defects and corrections keep being classed `guideline-ignored` against it, per `runs.jsonl`) is replaced by a check rather than reworded again. A missing guideline is added only for a defect or a user correction whose root cause it is (`learn.md`): an optimization adds none on its own judgement. A `pending` category that has recurred without the learn job acting on it is a tier-1 proposal.
 4. For each failure whose fix belongs in the plugin, draft an upstream report (`upstream.md`), and list it in `proposals.md` with its local workaround, if any, and the run refs behind its evidence.
 5. Weigh the learn job's `proposals` and `proposed_checks` from recent runs (in the guideline audit): one that recurs across runs is evidence; make it a proposal here, with a contract, or say in the rejected list why not.
 6. When the evidence says the goals themselves look out of date (most effort goes to something no goal names, or a goal has had no work in months), recommend a change to `goals.md` for the team to make: it is tier 3.
@@ -58,11 +58,12 @@ Follow each proposal's validation plan:
 - **Review behaviour** (lenses, extra reviewers, the review model or effort): replay the project's eval cases.
   - Read each `.claude/singularity/evals/<id>/case.md`, and pass its frontmatter fields plus the **absolute** path of its `change.patch`.
   - Run two variants, `baseline` (the current config) and `candidate` (the proposed config). Give **both** their full lens list and reviewer binding, so that the only difference between them is the proposed change.
-  - As the session, run the `singularity:replay-evals` workflow. As a subagent, do what `<plugin root>/workflows/replay-evals.js` does: for each variant, case and lens, spawn the variant's reviewer in its own worktree (`isolation: "worktree"`, or a `git worktree add --detach` under the run directory that you remove afterwards) with the same setup and Task A prompt; judge its findings with a `sonnet` subagent at `low` effort and the same judging prompt; score as the workflow does.
+  - Run each variant with `trials` of at least 3. The reviewer isn't deterministic: the same config finds different issues on different runs, so one trial per case can't tell a change from chance.
+  - As the session, run the `singularity:replay-evals` workflow. As a subagent, do what `<plugin root>/workflows/replay-evals.js` does: for each variant, case, lens and trial, spawn the variant's reviewer in its own worktree (`isolation: "worktree"`, or a `git worktree add --detach` under the run directory that you remove afterwards) with the same setup and Task A prompt; judge its findings with a `sonnet` subagent at `low` effort and the same judging prompt; score as the workflow does.
   - Report non-holdout and holdout results separately. Tell the user the estimated cost before running, unless the run is unattended.
-- **Not replayable** (spec, plan or implement behaviour, a project stage, the implementer's model): ship it as a **canary**. Record the current baseline metrics and the check-after point.
+- **Not replayable** (spec, plan or implement behaviour, a project stage, the implementer's model): ship it as a **canary**. Record the current baseline metrics and the check-after point. Ten runs show breakage, not a small improvement, so judge a canary on whether the defects and corrections it targets stopped, and on whether anything clearly got worse.
 
-Adopt a proposal only if its target cases improve and nothing else regresses, holdout included. Otherwise `git revert` its commit and record it as `rejected`, with the numbers.
+Adopt a proposal only if it gets right, in most trials, cases that the baseline gets wrong in most trials, and gets no case worse, holdout included. A difference of one or two cases, or of cases that flip between trials (`flaky`), is noise, not a win. If the proposal isn't adopted, `git revert` its commit and record it as `rejected`, with the numbers, and with `insufficient evidence` when that is the reason, so that it can be tried again once there are more cases.
 
 ## 7. Contracts and archive
 

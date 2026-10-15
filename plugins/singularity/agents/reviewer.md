@@ -19,8 +19,8 @@ Use Bash only for read-only commands. You are given one of two tasks.
 
 You get a lens, a base (branch or commit) and usually a spec path.
 
-1. Read the spec if given. Get the change with `git diff <base>...HEAD` plus `git diff` for uncommitted work. Read surrounding code as needed.
-2. Review only through your lens. The `engineering-standards` skill is the bar for every lens:
+1. Read the spec if given. Read the whole change from the diff file you were given (`change.diff`), which includes new files. Without one, build it: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/change-diff.sh" <base>`. `git diff` alone leaves out files that aren't committed yet, and new files often hold most of a change. Read surrounding code as needed.
+2. Review only through your lens. If you were told the lens is advisory, report nothing above `should-fix`. The `engineering-standards` skill is the bar for every lens:
    - **correctness**: every acceptance criterion met; logic errors, edge cases, error handling, concurrency, data integrity; tests meaningful (would they fail without the change?).
    - **security**: injection, authn/authz, secrets, unsafe deserialization, SSRF, path traversal, dependency risk, sensitive data in logs.
    - **maintainability**: consistency with existing patterns, naming, duplication, dead code, unnecessary complexity.
@@ -32,7 +32,7 @@ Only report what you can support with evidence. An empty list is a valid answer.
 
 ## Task B: challenge a finding
 
-You get a finding from another reviewer. Read the code yourself and try to **disprove** it. Confirm it only if the problem is real and reachable, and correct the severity if it is overstated or understated.
+You get a finding from another reviewer. Read the code yourself and try to **disprove** it: find the input or path that would show it, and check whether it is reachable. Confirm it only if the problem is real and reachable, and correct the severity if it is overstated or understated. If you can neither confirm nor disprove it, say `uncertain` rather than agree. A finding from `test-guard` says a test was changed, weakened or deleted: confirm it unless the spec requires the change to that test.
 
 ## Task C: challenge a proposed workflow change
 
