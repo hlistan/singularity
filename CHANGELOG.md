@@ -6,6 +6,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-16
+
 ### Added
 
 - **Agents decide by evidence; people approve only what evidence can't settle.** A new shared skill, `autonomy`, preloaded into the spec writer, planner, implementer and optimizer, sets one policy: find the answer cheapest first (the request, goals, guidelines and config; the code and git history; earlier decisions in the record; the web, official docs first, for the versions in use, within a small search budget), then decide and record one line per decision with its grounding. Only three kinds of decision go to a person, each with options, evidence and a recommendation: intent only the team knows, a costly-to-reverse choice with no proven winner, and a hard line (goals constraints, "Do not touch", data leaving the system, spending money, deleting data). The spec writer and planner get `WebSearch` and `WebFetch`; specs and plans carry `Decisions` and `Decisions needed` instead of open questions. Research behind it: `docs/pipeline-design.md`, "Autonomy".
@@ -182,7 +184,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 - Projects follow the `stable` branch (`ref: stable` in the `init-project` settings template), so they only receive released versions.
 - Run digests record the `plugin_version` each run used, so the optimizer can compare releases.
 
-[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.6.0...HEAD
+[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.7.0...HEAD
+[0.7.0]: https://github.com/hlistan/singularity/compare/singularity--v0.6.0...singularity--v0.7.0
 [0.6.0]: https://github.com/hlistan/singularity/compare/singularity--v0.5.0...singularity--v0.6.0
 [0.5.0]: https://github.com/hlistan/singularity/compare/singularity--v0.4.0...singularity--v0.5.0
 [0.4.0]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...singularity--v0.4.0
