@@ -1,10 +1,10 @@
 ## What
 
-<!-- One or two sentences. Link the issue if there is one. -->
+<!-- One or two sentences; link the issue if there is one. -->
 
 ## Why / evidence
 
-<!-- For behaviour changes: what failed, how often, where (runs, eval cases, human reviews). -->
+<!-- Behaviour changes: what failed, how often, where (runs, eval cases, human reviews). -->
 
 ## Contract (behaviour changes only)
 

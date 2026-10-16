@@ -5,6 +5,8 @@
 # instruction. After checks.stop_retries blocks in a row (default 3) it lets the agent stop, and the
 # pipeline's own checks stage reports what still fails. Checks listed in <work_dir>/.state/baseline-failures,
 # which the pipeline writes before implementing, were failing before the change and don't block.
+# Each block is logged to <work_dir>/.state/stop-gate.log (<time>\t<agent>\t<block>/<retries>\t<failing
+# checks>), so the pipeline can record it for the learn job.
 # Off with checks.implement_gate: false.
 # Every other agent, and any project without .claude/singularity.md, passes straight through.
 set -u
@@ -64,11 +66,15 @@ fi
 
 known=()
 [ -f "$state/baseline-failures" ] && known=(--known-failures "$state/baseline-failures")
-out="$(bash "$here/run-checks.sh" --root "$root" --tail 30 "${known[@]+"${known[@]}"}" 2>&1)"
+failed="$state/.stop-failed-$$"
+out="$(bash "$here/run-checks.sh" --root "$root" --tail 30 --save-failures "$failed" "${known[@]+"${known[@]}"}" 2>&1)"
 code=$?
 if [ "$code" -eq 1 ]; then
   count=$((count + 1))
   printf '%s\n' "$count" > "$counter" 2>/dev/null
+  printf '%s\t%s\t%s/%s\t%s\n' "$(date -u +%FT%TZ)" "$agent" "$count" "$retries" \
+    "$(tr '\n' ' ' < "$failed" 2>/dev/null | sed 's/ *$//')" >> "$state/stop-gate.log" 2>/dev/null
+  rm -f "$failed"
   {
     printf "singularity: you can't finish yet: the project's checks fail (block %s of %s).\n" "$count" "$retries"
     printf 'Fix the cause in the code. Never weaken, skip or delete a test or a check to get green, and never edit a test you froze.\n'
@@ -77,5 +83,5 @@ if [ "$code" -eq 1 ]; then
   } >&2
   exit 2
 fi
-rm -f "$counter"
+rm -f "$counter" "$failed"
 exit 0

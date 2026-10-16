@@ -12,7 +12,7 @@ tracker:
     extra_statuses: [QA, ON_HOLD]        # optional: any other statuses the team uses
 ```
 
-Each task is one file in `files.dir`, named `<STATUS>-<ID>-<slug>`, with an optional `.md`, `.txt` or `.markdown` extension. The status is the file name prefix:
+One file per task in `files.dir`, named `<STATUS>-<ID>-<slug>` (prefix = status), optional `.md`, `.txt` or `.markdown` extension:
 
 ```text
 .tasks/
@@ -30,11 +30,11 @@ Each task is one file in `files.dir`, named `<STATUS>-<ID>-<slug>`, with an opti
 | `blocked` | `BLOCKED` |
 | `done` | `DONE` |
 
-States can share a prefix: `{ in_review: PROGRESS }` skips a separate review status, so moving a task to review leaves its name unchanged. Only `todo` needs a prefix of its own, because claiming a task works by renaming it out of the queue.
+States can share a prefix (`{ in_review: PROGRESS }`: moving to review keeps the name). Only `todo` needs its own: claiming renames a task out of the queue.
 
-**Custom statuses.** A team can use any other statuses it needs (for example `QA`, `DESIGN`, `ON_HOLD`) by listing them in `extra_statuses`: upper-case letters, digits and `_`. They work everywhere a status does (`list QA`, `move T4 QA`, `move T4 done --from QA`), and `get` prints an empty `state=` for them because they have no meaning to the pipeline. The pipeline never moves a task into a custom status on its own; do it when the user asks. Files whose prefix isn't declared are ignored, and `validate` reports them, so a typo such as `TOD0-T4-…` doesn't silently drop a task from the queue. To make the pipeline use a custom status for one of its own steps, map it in `statuses` instead, for example `{ in_review: QA }`.
+**Custom statuses.** `extra_statuses` declares other statuses (e.g. `QA`, `ON_HOLD`): upper-case letters, digits, `_`. They work wherever a status does (`list QA`, `move T4 QA`, `move T4 done --from QA`); `get` prints an empty `state=` for them. Tasks enter one only on user request. Undeclared prefix -> file ignored, reported by `validate` (so a typo like `TOD0-T4-…` can't hide a task). To use one for a pipeline step, map it in `statuses` (e.g. `{ in_review: QA }`).
 
-The ID is letters, digits and `_` (no `-`). The file content is the ticket: free text or Markdown, whose first level-1 heading (`# Title`) is the title. Optional front matter sets the queue order (lower `priority` first, then the lowest ID number) and can say what kind of work it is:
+IDs: letters, digits, `_` (no `-`). Content: the ticket, free text or Markdown; title = first level-1 heading (`# Title`). Optional front matter: `priority` (queue order: lower first, then lowest ID number) and `type`:
 
 ```markdown
 ---
@@ -48,35 +48,35 @@ Users land on /home instead of the page they asked for.
 
 ## Access
 
-Always go through the tasks script; its path is in the tracker's `SKILL.md`. Run it from the project root as `bash "<path>" [options] <command>`. Never rename, create or edit task files by hand: the script keeps names valid, IDs unique and claims atomic.
+Only through the tasks script (path in the tracker's `SKILL.md`), from the project root: `bash "<path>" [options] <command>`. Never rename, create or edit task files by hand: the script keeps names valid, IDs unique, claims atomic.
 
-**In a worktree** (a session started with `claude --worktree`, for example, to run in parallel with another), the task folder is git-ignored, so the worktree has no copy of it, and a copy wouldn't share claims anyway. Use the main checkout's folder: when `git rev-parse --git-dir` and `git rev-parse --git-common-dir` differ, run the script there, `(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && bash "<path>" [options] <command>)`. Claims stay atomic across every worktree, because they all rename files in that one folder.
+**In a worktree** (e.g. `claude --worktree`) the git-ignored task folder is absent; a copy wouldn't share claims. `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir` -> run the script in the main checkout: `(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && bash "<path>" [options] <command>)`; claims stay atomic across worktrees.
 
-Options, built from the config:
+Options from the config:
 
 - `--dir <files.dir>` if set;
 - `--id-prefix <files.id_prefix>` if set;
-- `--status <state>=<PREFIX>` for each entry in `files.statuses`;
-- `--extra-status <PREFIX>` for each entry in `files.extra_statuses`.
+- `--status <state>=<PREFIX>` per `files.statuses` entry;
+- `--extra-status <PREFIX>` per `files.extra_statuses` entry.
 
-Before the first operation in a session, run `validate`:
+Run `validate` before a session's first command:
 
-- If it reports that the directory is **not git-ignored**, stop and tell the user to add it to `.gitignore`. Task files can hold customer details and must never be committed, so every other command refuses to run (exit `1`) until it is ignored.
-- For other problems (undeclared status prefixes, malformed names, duplicate IDs), report them to the user and carry on with the valid tasks. An undeclared prefix the team uses on purpose belongs in `extra_statuses`; suggest adding it.
+- Directory **not git-ignored** -> stop; tell the user to add it to `.gitignore` (task files may hold customer details and must never be committed). Until then every other command exits `1`.
+- Other problems (undeclared status prefixes, malformed names, duplicate IDs) -> report, continue with the valid tasks; for a deliberate undeclared prefix, suggest `extra_statuses`.
 
-Exit codes: `1` validation problems or directory not git-ignored, `2` usage error, `3` not found or empty queue, `4` duplicate ID, `5` conflict.
+Exit codes: `1` validation problems or unignored directory, `2` usage error, `3` not found or empty queue, `4` duplicate ID, `5` conflict.
 
 ## Operations
 
-- **get**: `get <ID>`. A file name or path works too. Output: `key=value` lines (`status`, `state`, `id`, `slug`, `title`, `priority`, `path`), a `---` line, then the file content. Exit `4` means two files share the ID: ask the user which one is meant.
-- **next**: `next` prints the first `TODO` task in queue order the same way, plus `remaining=<n>`. Exit `3` means the queue is empty: tell the user.
-- **move**: `move <ID> <state>`. When work **starts** on a task, always claim it with `move <ID> in_progress --from todo`. Exit `5` means another session took it first: after `next`, run `next` again; for an ID the user gave, tell them.
-- **resume**: when the user confirms resuming a task that is already `in_progress`, `blocked` or `in_review`, use `move <ID> in_progress --from in_progress,blocked,in_review`. It still refuses a task that has meanwhile moved to another state, such as one another session finished. Never rename files by hand to resume.
-- **comment**: `comment <ID> "<text>"` appends a timestamped line under a `## Log` heading in the task file. One line, no secrets.
+- **get**: `get <ID>` (or a file name or path). Output: `key=value` lines (`status`, `state`, `id`, `slug`, `title`, `priority`, `path`), a `---` line, the file content. Exit `4` (duplicate ID) -> ask the user which file.
+- **next**: `next` prints the first `TODO` task in queue order, same format, plus `remaining=<n>`. Exit `3` (empty queue) -> tell the user.
+- **move**: `move <ID> <state>`. Work **starts** -> always claim: `move <ID> in_progress --from todo`. Exit `5` (another session claimed it) -> after `next`: `next` again; for a user-given ID: tell the user.
+- **resume**: user confirms resuming a task already `in_progress`, `blocked` or `in_review` -> `move <ID> in_progress --from in_progress,blocked,in_review`. Refuses a task that has since moved to another state.
+- **comment**: `comment <ID> "<text>"` appends a timestamped line under `## Log`; one line, no secrets.
 - **link**: `comment <ID> "Link: <url>"`.
-- **create**: `create <slug> "<title>"`, with the body on standard input. Only on the user's explicit request.
-- **open_change**, **find_change**, **list_changes**, **review_comments**: not part of this adapter; they come from `code_host` (GitHub or GitLab), or are skipped when `code_host.type` is `none`.
+- **create**: `create <slug> "<title>"`, body on stdin; only on explicit user request.
+- **open_change**, **find_change**, **list_changes**, **review_comments**: from `code_host` (GitHub or GitLab); skipped when `code_host.type` is `none`.
 
 ## Done
 
-No merge event closes a task file. The pipeline moves the task to `in_review` at hand-off, and to `done` only when the user says so. In unattended runs it stays in review.
+No merge closes a task file: the pipeline moves it to `in_review` at hand-off, to `done` only when the user says so (unattended: stays in review).

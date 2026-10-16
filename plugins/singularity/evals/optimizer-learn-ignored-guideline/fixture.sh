@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # A run's first verification failed because the implementer summed money as floats, although guideline
 # G1 in implement.md, which the implementer reads, says to use Money. The cause is guideline-ignored:
-# the learn job must propose a check, and add no second guideline that says the same thing.
+# the learn job must propose a check, and add no second guideline that says the same thing. Review missed
+# it too, so moving G1 where the reviewer also reads it is right; copying it is not.
 set -e
 git init -q -b main .
 git config user.email eval@example.com

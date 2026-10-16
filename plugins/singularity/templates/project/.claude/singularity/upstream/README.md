@@ -1,18 +1,16 @@
 # Upstream reports
 
 Problems this project found in the shared singularity plugin, each with a
-proposed fix, for the singularity maintainers to adopt. The singularity
-optimizer writes them; the team reviews them in the optimizer's PR/MR, and
-files the ones it approves as issues in the singularity repository.
+proposed fix for the singularity maintainers. The singularity optimizer writes
+them; the team reviews them in its PR/MR and files approved ones as issues in
+the singularity repository.
 
-Guidelines the optimizer thinks would be right in every project collect
-first in `../experience/upstream.md`. The optimizer turns the ones with enough
-evidence into reports here.
+Candidate guidelines for every project collect first in
+`../experience/upstream.md`; those with enough evidence become reports here.
 
-Reports are written to be published, every section of them. They leave
-out the names of this project, its repositories, hosts, tracker and people,
-ticket keys, and code from it. The refs behind the evidence stay in the
-optimizer's PR/MR.
+Every section is written for publication: no names of this project, its
+repositories, hosts, tracker or people, no ticket keys, no code from it. The
+refs behind the evidence stay in the optimizer's PR/MR.
 
 One file per report, `U-<date>-<n>-<slug>.md`:
 

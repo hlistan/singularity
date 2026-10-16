@@ -116,9 +116,9 @@ jobs:
           else
             bash tests/guard-bash.test.sh
           fi
-      - name: Run the checks, stop gate, test guard and change diff tests
+      - name: Run the checks, stop gate, test guard, change diff and outcomes tests
         run: |
-          for t in tests/run-checks.test.sh tests/test-guard.test.sh tests/change-diff.test.sh; do
+          for t in tests/run-checks.test.sh tests/test-guard.test.sh tests/change-diff.test.sh tests/outcomes.test.sh; do
             if [ "$RUNNER_OS" = "macOS" ]; then /bin/bash "$t"; else bash "$t"; fi || exit 1
           done
 

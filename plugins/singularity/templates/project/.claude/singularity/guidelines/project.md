@@ -5,7 +5,6 @@ needs, wherever it works. Imported into every session, so keep it to at most
 40 guidelines; guidelines for one part of the code go in path-scoped rules in
 `.claude/rules/singularity/`.
 
-Maintained by the singularity optimizer and reviewed in PRs/MRs
-like code. Each guideline states the current right way; when the code
-changes, the guideline changes with it. Format and rules: singularity
-`optimizer/learn.md`.
+Maintained by the singularity optimizer and reviewed in PRs/MRs like code.
+Each guideline states the current right way and changes when the code does.
+Format and rules: singularity `optimizer/learn.md`.

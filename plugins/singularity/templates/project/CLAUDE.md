@@ -11,8 +11,8 @@ the team works towards are in `.claude/singularity/goals.md`.
 ## Architecture
 
 TODO: only what the code doesn't make obvious, such as where the business
-rules live or which service owns which data. Agents read the code
-themselves, so don't describe the directory layout.
+rules live or which service owns which data. Agents read the code: don't
+describe the directory layout.
 
 ## Conventions specific to this project
 

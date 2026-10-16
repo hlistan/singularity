@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Interactive map of the singularity agentic flow. Open in a browser. Source of truth: plugins/singularity/. -->
+<title>Singularity Agentic Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a two-pane workbench. Left: the two flow schemas, scrolled; right: a sticky inspector that
+   explains the selected box and plays scenarios. Reference tables follow full width. Role colours are
+   the `color:` values in each agent's frontmatter. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-2: #e9edf2;
+  --ink: #142031;
+  --muted: #536175;
+  --line: #ccd4df;
+  --accent: #2747a8;
+  --accent-soft: #e3e9f8;
+  --r-spec: #7646c4;
+  --r-plan: #2a66d0;
+  --r-impl: #2a8443;
+  --r-review: #c46311;
+  --r-verify: #0f8296;
+  --r-opt: #c43535;
+  --gate: #9a6e00;
+  --gate-bg: #fbf2d6;
+  --mech: #5b6a7e;
+  --stop: #c43535;
+  --stop-bg: #fbe7e7;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131a; --surface: #161d26; --surface-2: #1d2631; --ink: #e4e9f0; --muted: #98a5b6; --line: #2c3746;
+    --accent: #8ea8f5; --accent-soft: #1f2a44;
+    --r-spec: #ab8cf0; --r-plan: #6f9ef5; --r-impl: #5fc27c; --r-review: #f0a159; --r-verify: #4fc3d5; --r-opt: #f07c7c;
+    --gate: #e3b545; --gate-bg: #2e2712; --mech: #8d9bb0; --stop: #f07c7c; --stop-bg: #34191b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131a; --surface: #161d26; --surface-2: #1d2631; --ink: #e4e9f0; --muted: #98a5b6; --line: #2c3746;
+  --accent: #8ea8f5; --accent-soft: #1f2a44;
+  --r-spec: #ab8cf0; --r-plan: #6f9ef5; --r-impl: #5fc27c; --r-review: #f0a159; --r-verify: #4fc3d5; --r-opt: #f07c7c;
+  --gate: #e3b545; --gate-bg: #2e2712; --mech: #8d9bb0; --stop: #f07c7c; --stop-bg: #34191b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+a { color: var(--accent); }
+code, pre, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--surface-2); padding: 0.05em 0.3em; border-radius: 3px; overflow-wrap: anywhere; }
+pre { background: var(--surface-2); padding: 10px 12px; border-radius: 6px; overflow-x: auto; line-height: 1.45; margin: 8px 0; white-space: pre; }
+pre code { background: none; padding: 0; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; letter-spacing: -0.01em; line-height: 1.15; }
+.wrap { max-width: 1240px; margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header + nav */
+header.top { padding-block: 28px 8px; }
+.eyebrow { font: 600 12px/1 var(--f-body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+header.top h1 { font-size: clamp(30px, 5vw, 46px); margin: 10px 0 8px; font-weight: 700; }
+.lede { max-width: 70ch; color: var(--muted); margin: 0 0 6px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+nav.sections { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 25; background: var(--bg); border-bottom: 1px solid var(--line); margin-top: 18px; }
+nav.sections .wrap { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav.sections a { padding: 10px 12px; color: var(--muted); text-decoration: none; font-weight: 500; font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
+nav.sections a:hover { color: var(--ink); border-bottom-color: var(--line); }
+
+section { padding-block: 26px 10px; scroll-margin-top: 50px; }
+section > .wrap > h2 { font-size: 26px; margin: 0 0 6px; }
+.sub { color: var(--muted); max-width: 75ch; margin: 0 0 16px; }
+
+/* flow workbench */
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }
+.diagrams { min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 14px 10px; }
+figure h3 { font-size: 17px; margin: 0 0 2px; }
+figcaption { color: var(--muted); font-size: 13px; margin: 2px 0 8px; max-width: 75ch; }
+.scroller { overflow-x: auto; }
+.scroller svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; list-style: none; padding: 0; }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.sw { width: 18px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--surface); display: inline-block; }
+.sw.role { border-color: var(--r-review); }
+.sw.gate { border-color: var(--gate); background: var(--gate-bg); border-radius: 8px; }
+.sw.mech { border-color: var(--mech); background: var(--surface-2); border-radius: 1px; }
+.sw.stage { border-style: dashed; border-color: var(--ink); }
+.sw.orch { border-color: var(--ink); }
+.sw.cmd { background: var(--ink); border-color: var(--ink); }
+.sw.stop { border-color: var(--stop); background: var(--stop-bg); }
+.sw.file { border-color: var(--muted); border-width: 1px; }
+
+/* svg */
+svg text { font-family: var(--f-body); }
+.node { cursor: pointer; }
+.node .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: stroke-width .12s; }
+.node .ring { fill: none; stroke: var(--accent); stroke-width: 2.5; opacity: 0; }
+.node .t { font-size: 13px; font-weight: 600; fill: var(--ink); }
+.node .s { font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted); }
+.node .dot { stroke: none; }
+.node.k-role .box { stroke: var(--rc); stroke-width: 1.8; }
+.node.k-role .dot { fill: var(--rc); }
+.node.k-gate .box { fill: var(--gate-bg); stroke: var(--gate); }
+.node.k-mech .box { fill: var(--surface-2); stroke: var(--mech); }
+.node.k-mech .t { font-family: var(--f-mono); font-size: 12px; }
+.node.k-stage .box { fill: var(--bg); stroke: var(--ink); stroke-dasharray: 5 4; stroke-width: 1.2; }
+.node.k-stage .t { font-family: var(--f-mono); font-size: 12px; font-weight: 500; }
+.node.k-orch .box { stroke: var(--ink); stroke-width: 1.2; }
+.node.k-cmd .box { fill: var(--ink); stroke: var(--ink); }
+.node.k-cmd .t { fill: var(--bg); font-family: var(--f-mono); font-size: 12.5px; }
+.node.k-cmd .s { fill: var(--bg); opacity: .75; }
+.node.k-stop .box { fill: var(--stop-bg); stroke: var(--stop); }
+.node.k-stop .t { fill: var(--stop); }
+.node.k-file .box { stroke: var(--muted); stroke-width: 1; }
+.node.k-file .t { font-family: var(--f-mono); font-size: 12px; }
+.node.k-ext .box { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 2 3; }
+.node:hover .box { stroke-width: 2.6; }
+.node:focus { outline: none; }
+.node:focus-visible .ring, .node.sel .ring { opacity: 1; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+.edge.dash { stroke-dasharray: 4 4; }
+.mk { fill: var(--muted); }
+.mk-lit { fill: var(--accent); }
+.elabel { font-family: var(--f-mono); font-size: 10px; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.slabel { font-size: 10.5px; font-weight: 600; letter-spacing: .08em; fill: var(--muted); }
+svg.playing .node { opacity: .3; transition: opacity .2s; }
+svg.playing .node.visited { opacity: 1; }
+svg.playing .node.current .ring { opacity: 1; stroke-width: 3.5; }
+svg.playing .edge { opacity: .22; }
+svg.playing .elabel { opacity: .35; }
+svg .edge.lit { opacity: 1; stroke: var(--accent); stroke-width: 2.2; }
+@media (prefers-reduced-motion: no-preference) {
+  svg.playing .node.current .ring { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { stroke-opacity: .35; } }
+}
+
+/* inspector */
+.inspector { position: sticky; top: 56px; max-height: calc(100vh - 70px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.player { padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--accent-soft); }
+.player label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.player select { width: 100%; font: 500 14px var(--f-body); padding: 7px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ctrl { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+button { font: 500 13px var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+.count { font: 12px var(--f-mono); color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+.cmdline { font: 12px var(--f-mono); color: var(--ink); margin: 8px 0 0; overflow-wrap: anywhere; }
+.steptext { margin: 8px 0 0; font-size: 14px; }
+.steplist { margin: 8px 0 0; padding-left: 22px; font-size: 13px; max-height: 150px; overflow: auto; color: var(--muted); }
+.steplist li { cursor: pointer; padding: 1px 0; }
+.steplist li.on { color: var(--ink); font-weight: 600; }
+.detail { padding: 14px 16px 18px; }
+.kicker { font: 600 11.5px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.detail h3 { font-size: 21px; margin: 4px 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; padding: 0; list-style: none; }
+.chips li { font: 11.5px var(--f-mono); padding: 2px 7px; border-radius: 99px; background: var(--surface-2); color: var(--ink); }
+.detail h4 { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+.detail p { margin: 6px 0; }
+.detail ul, .detail ol { margin: 4px 0; padding-left: 20px; }
+.detail li { margin: 2px 0; }
+.detail pre { font-size: 11.5px; white-space: pre-wrap; }
+table.kv { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 4px 0; }
+table.kv td { border-top: 1px solid var(--line); padding: 5px 6px 5px 0; vertical-align: top; }
+table.kv td:first-child { width: 38%; padding-right: 10px; }
+.detail a[data-node], .detail a[data-scn] { cursor: pointer; }
+.sheet-toggle { display: none; }
+
+/* scenarios grid */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.card h3 { font-size: 16px; margin: 0; font-family: var(--f-body); font-weight: 600; letter-spacing: 0; }
+.card .cmdline { margin: 0; color: var(--muted); }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.card button { align-self: flex-start; margin-top: auto; }
+
+/* reference tables */
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin: 10px 0 18px; }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+.tbl th, .tbl td { text-align: left; vertical-align: top; padding: 8px 12px; border-top: 1px solid var(--line); }
+.tbl thead th { border-top: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+.tbl td.n { font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--f-mono); font-size: 13px; }
+.roledot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+h3.ref { font-size: 18px; margin: 22px 0 4px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.cols > div { min-width: 0; }
+.tree { font-size: 12.5px; }
+ul.rules { padding-left: 20px; margin: 6px 0; }
+ul.rules li { margin: 3px 0; }
+footer { color: var(--muted); font-size: 13px; padding-block: 30px 40px; }
+
+@media (max-width: 1023px) {
+  .bench { grid-template-columns: minmax(0, 1fr); }
+  .inspector {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 40; max-height: 52vh; border-radius: 12px 12px 0 0;
+    border-bottom: 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+  }
+  .inspector.collapsed .detail, .inspector.collapsed .steplist { display: none; }
+  .sheet-toggle { display: inline-block; }
+  body { padding-bottom: 54vh; }
+  body.sheet-collapsed { padding-bottom: 220px; }
+}
+</style>
+
+<header class="top wrap">
+  <div class="eyebrow">Project Singularity · plugin 0.5.0 · Claude Code</div>
+  <h1>Agentic flow</h1>
+  <p class="lede">Every stage, gate, script and hook that <code>/singularity:feature</code> runs, and how the optimizer turns each run into the agents' guidelines. Select a box for its contract and rules, or play a scenario to watch a run move through the schema.</p>
+  <ul class="facts">
+    <li><b>6</b> agents, bound to roles</li>
+    <li><b>2</b> approval gates</li>
+    <li><b>9</b> hook commands on 7 events</li>
+    <li>fix rounds <b>≤ 2</b> · verify <b>1</b></li>
+    <li>learn after <b>every</b> run</li>
+    <li>optimize every <b>10</b> runs</li>
+  </ul>
+</header>
+
+<nav class="sections" aria-label="Sections">
+  <div class="wrap">
+    <a href="#flow">Flow schema</a>
+    <a href="#scenarios">Scenarios</a>
+    <a href="#agents">Agents</a>
+    <a href="#guardrails">Hooks &amp; scripts</a>
+    <a href="#rules">Rules &amp; limits</a>
+    <a href="#files">Files</a>
+    <a href="#config">Config</a>
+  </div>
+</nav>
+
+<main>
+<section id="flow">
+  <div class="wrap">
+    <h2>Flow schema</h2>
+    <p class="sub">Top: one <code>/singularity:feature</code> run, steps 0–9 of <code>skills/feature/SKILL.md</code>. Bottom: what the run feeds, from the learn job to optimizations and upstream reports. Arrows carry the artifact or exit condition that moves work on.</p>
+    <div class="bench">
+      <div class="diagrams">
+        <figure>
+          <h3>Feature pipeline</h3>
+          <figcaption>Stages hand work to each other through files in the work dir. Checks run before review; fix rounds loop back to the checks; any stage that stops early still runs learn.</figcaption>
+          <div class="scroller"><svg id="svgA" role="img" aria-label="Feature pipeline: request, setup, spec and gate, plan and gate, implement under a stop gate and test guard, checks, review, verify, fix rounds looping back to checks, stop early path, hand-off, learn, optimization check."></svg></div>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="sw role"></span>role agent (frontmatter colour)</li>
+            <li><span class="sw gate"></span>human decision</li>
+            <li><span class="sw mech"></span>script or hook, exit codes</li>
+            <li><span class="sw stage"></span>project stage (optional)</li>
+            <li><span class="sw orch"></span>orchestrator step</li>
+            <li><span class="sw cmd"></span>command</li>
+            <li><span class="sw stop"></span>exit path</li>
+          </ul>
+        </figure>
+        <figure>
+          <h3>Learning loop</h3>
+          <figcaption>Guidelines change only for a defect whose root cause is a weak guideline, or a user correction. The record (<code>runs.jsonl</code>) feeds the slow loop; causes in the shared plugin leave the project only as upstream reports.</figcaption>
+          <div class="scroller"><svg id="svgB" role="img" aria-label="Learning loop: onboarding strip; signals (run record, corrections queue, later fixes, human reviews, the run's own change) into the learn job; root cause and evidence gate; outputs (guidelines, proposed checks, runs.jsonl, eval cases, upstream candidates); optimization cycle of seven steps; upstream report path to the maintainers."></svg></div>
+          <ul class="legend">
+            <li><span class="sw file"></span>committed file</li>
+            <li><span class="sw gate"></span>human decision</li>
+            <li><span class="sw stage" style="border-style:dotted"></span>outside the project</li>
+          </ul>
+        </figure>
+      </div>
+
+      <aside class="inspector" id="inspector" aria-live="polite">
+        <div class="player">
+          <label for="scn">Scenario</label>
+          <select id="scn"></select>
+          <div class="ctrl">
+            <button id="prev" type="button" aria-label="Previous step">← Prev</button>
+            <button id="next" type="button" class="primary" aria-label="Next step">Next →</button>
+            <button id="sheet" type="button" class="sheet-toggle" aria-expanded="true">Hide</button>
+            <span class="count" id="count"></span>
+          </div>
+          <p class="cmdline" id="scnCmd"></p>
+          <p class="steptext" id="stepText"></p>
+          <ol class="steplist" id="stepList"></ol>
+        </div>
+        <div class="detail" id="detail"></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section id="scenarios">
+  <div class="wrap">
+    <h2>Scenarios</h2>
+    <p class="sub">How the flow behaves in each usage situation. Play one to step through it on the schema; each step names the node, what runs and what it writes.</p>
+    <div class="cards" id="cards"></div>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="wrap">
+    <h2>Agents and roles</h2>
+    <p class="sub">Pipelines refer to roles. <code>roles.&lt;role&gt;.agent</code> rebinds one; <code>roles.&lt;role&gt;.model</code> / <code>.effort</code> override the frontmatter defaults, and the orchestrator passes <code>model</code> / <code>effort</code> only when the config sets them. Every code-facing agent preloads <code>singularity:engineering-standards</code>.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Role</th><th>Default agent</th><th>Model · effort</th><th>Tools</th><th>Reads</th><th>Gets</th><th>Must deliver</th></tr></thead>
+      <tbody>
+        <tr><td><span class="roledot" style="background:var(--r-spec)"></span>spec</td><td><code>singularity:spec-writer</code></td><td class="n">opus · high</td><td>Read, Grep, Glob, Write</td><td><code>guidelines/spec.md</code>, rules, <code>goals.md</code> if confirmed</td><td>ticket, kind, size, output path</td><td><code>spec.md</code>: numbered ACs, open questions; returns AC count + questions verbatim</td></tr>
+        <tr><td><span class="roledot" style="background:var(--r-plan)"></span>plan</td><td><code>singularity:planner</code></td><td class="n">opus · high</td><td>Read, Grep, Glob, Bash (read-only), Write</td><td><code>guidelines/plan.md</code>, rules, <code>goals.md</code> trade-offs</td><td>spec path, output path</td><td><code>plan.md</code> with <code>- [ ] 1. …</code> steps (resume relies on them)</td></tr>
+        <tr><td><span class="roledot" style="background:var(--r-impl)"></span>implement</td><td><code>singularity:implementer</code></td><td class="n">sonnet · medium<br>fix rounds: high</td><td>all</td><td><code>guidelines/implement.md</code>, rules, standards</td><td>spec + plan paths; findings or failures in fix rounds</td><td>code + tests on the branch; each step ticked in the plan</td></tr>
+        <tr><td><span class="roledot" style="background:var(--r-review)"></span>review</td><td><code>singularity:reviewer</code></td><td class="n">fable · high<br>advisory: sonnet · high</td><td>Read, Grep, Glob, Bash (read-only)</td><td><code>guidelines/review.md</code>, rules</td><td>Task A: lens, base, spec · Task B: one finding · Task C: an optimizer proposal or upstream report</td><td>findings (severity, location, problem, evidence, fix) · verdict (confirmed / severity / reason, or <code>uncertain</code>) · <code>sound</code> / <code>revise</code> / <code>reject</code></td></tr>
+        <tr><td><span class="roledot" style="background:var(--r-verify)"></span>verify</td><td><code>singularity:verifier</code></td><td class="n">sonnet · medium</td><td>Read, Grep, Glob, Bash</td><td><code>guidelines/verify.md</code>, rules</td><td>spec path, work dir</td><td>checks table, Test Coverage and Verification Summary, <code>PASS</code> / <code>FAIL</code></td></tr>
+        <tr><td><span class="roledot" style="background:var(--r-opt)"></span>optimize</td><td><code>singularity:optimizer</code></td><td class="n">fable · xhigh<br>learn job: opus · high</td><td>Read, Grep, Glob, Bash, Write, Edit, WebSearch, WebFetch, Agent, Skill, AskUserQuestion, Workflow</td><td><code>goals.md</code>, the record, its playbooks in <code>optimizer/</code></td><td>a job: <code>learn</code>, <code>onboard</code>, <code>migrate</code>, <code>confirm goals</code>, <code>optimize</code>, <code>file upstream reports</code></td><td>learn: guidelines + digest + eval cases · others: run dir, branch, draft PR/MR, or a <b>Decision needed</b> block</td></tr>
+      </tbody>
+    </table></div>
+    <div class="cols">
+      <div>
+        <h3 class="ref">Model resolution</h3>
+        <ul class="rules">
+          <li>Defaults live in one place: frontmatter of <code>plugins/singularity/agents/*.md</code>.</li>
+          <li>Learn job: <code>roles.learn</code> model/effort, else opus · high. <code>roles.learn.agent</code> no longer applies.</li>
+          <li>Fix rounds: <code>effort: high</code> unless <code>roles.implement.effort</code> is set.</li>
+          <li>Advisory lenses: <code>review.advisory</code>, default <code>{ model: sonnet, effort: high }</code>.</li>
+          <li>Blocked by an org allowlist → newest allowed model of the family, else the session model. On Bedrock, Google Cloud, Foundry some aliases resolve older (check <code>/model</code>).</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="ref">Replacing a role</h3>
+        <ul class="rules">
+          <li>Project agent in <code>.claude/agents/&lt;name&gt;.md</code> + <code>roles.&lt;role&gt;.agent: &lt;name&gt;</code>; it must keep the role's contract (table above).</li>
+          <li><code>name</code>: plain, unique, no <code>singularity:</code>, no <code>:</code>. Reviewers and checkers get no Write or Edit.</li>
+          <li>A replacement is a fork: shared improvements stop reaching that role. Prefer an extra reviewer or a stage.</li>
+          <li>Rebinding <code>optimize</code> also takes over the learn job; its playbooks resolve through <code>&#36;{CLAUDE_PLUGIN_ROOT}</code>, which a project agent lacks.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="guardrails">
+  <div class="wrap">
+    <h2>Hooks and scripts</h2>
+    <p class="sub">Registered in <code>plugins/singularity/hooks/hooks.json</code>. Hooks read the event JSON on stdin; exit 2 blocks the action or sends stderr back to Claude as feedback.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Event</th><th>Matcher</th><th>Command</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>SessionStart</td><td>—</td><td><code>scripts/session-start.sh</code></td><td>One or two context lines: project not connected (suggest <code>/singularity:init-project</code>), or <i>n</i> corrections waiting for the learn job.</td></tr>
+        <tr><td>UserPromptSubmit</td><td>—</td><td><code>corrections.sh capture</code></td><td>Queues a prompt that reads like a correction, follows an interrupted turn, or follows a rejected tool call; queues feedback typed when rejecting one (transcript). Pasted content and agent messages don't count. Always exit 0, prints nothing.</td></tr>
+        <tr><td>Stop</td><td>—</td><td><code>corrections.sh remember</code></td><td>Marks the turn ended and keeps the agent's last message, to pair with the next correction; reads new rejections from the transcript.</td></tr>
+        <tr><td>StopFailure</td><td>—</td><td><code>corrections.sh remember</code></td><td>Marks a turn that ended on an API error as ended, so the next prompt doesn't count as after an interrupt.</td></tr>
+        <tr><td>SubagentStop</td><td>—</td><td><code>scripts/subagent-stop.sh</code> (timeout 3600 s)</td><td>Stop gate: the implementer can't finish while checks fail; exit 2, up to <code>checks.stop_retries</code>.</td></tr>
+        <tr><td>PreToolUse</td><td><code>Bash</code></td><td><code>scripts/guard-bash.sh</code></td><td>Command guard (below); exit 2 blocks.</td></tr>
+        <tr><td>PreToolUse</td><td><code>Bash</code></td><td><code>project-hook.sh pre-bash</code></td><td>Runs <code>.claude/singularity/hooks/pre-bash.sh</code> if executable; exit 2 blocks.</td></tr>
+        <tr><td>PreToolUse</td><td><code>Edit|Write|NotebookEdit</code></td><td><code>test-guard.sh pre-edit</code></td><td>Blocks edits to frozen tests; exit 2.</td></tr>
+        <tr><td>PostToolUse</td><td><code>Edit|Write|NotebookEdit</code></td><td><code>project-hook.sh post-edit</code></td><td>Runs <code>.claude/singularity/hooks/post-edit.sh</code> (e.g. formatter) if executable; exit 2 sends feedback.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="ref">Scripts</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Script</th><th>Usage</th><th>Exit codes</th></tr></thead>
+      <tbody>
+        <tr><td><code>run-checks.sh</code></td><td><code>[--only a,b] [--json f] [--tail n] [--save-failures f] [--known-failures f] [--root d]</code>. Runs <code>checks.run</code> (default build, lint, typecheck, test; skips unset/<code>TODO</code>), then <code>hooks/verify.sh</code> if executable; <code>CI=true</code>, no input. Success: one line. Failure: command, exit, last 40 lines.</td><td class="n">0 pass · 1 fail<br>2 usage/no config<br>3 nothing to run</td></tr>
+        <tr><td><code>test-guard.sh</code></td><td><code>freeze &lt;file&gt;…</code> · <code>pre-edit</code> · <code>check --base &lt;b&gt; [--plan p]</code> · <code>reset</code> · <code>is-test &lt;path&gt;…</code>. Tests: <code>checks.test_pattern</code> or common layouts. List: <code>.state/frozen-tests.txt</code>.</td><td class="n">0 ok · 1 problems<br>2 blocked / usage</td></tr>
+        <tr><td><code>change-diff.sh</code></td><td><code>&lt;base&gt; [--stat] [--root d]</code>: <code>git diff &lt;base&gt;</code> plus every untracked, non-ignored file as a diff against nothing.</td><td class="n">0 printed<br>2 usage, no repo, unknown base</td></tr>
+        <tr><td><code>corrections.sh</code></td><td>hooks: <code>remember</code>, <code>capture</code> · learn job: <code>list</code> (<code>path\tcaptured\tsession</code>), <code>count</code>, <code>clear &lt;path|name&gt;…</code> · <code>--root</code>. Records carry <code>trigger: phrase | interrupt | rejection</code>.</td><td class="n">0 ok · 2 usage</td></tr>
+        <tr><td><code>outcomes.sh</code></td><td><code>snapshot &lt;slug&gt; --base &lt;c&gt;</code> (hand-off ref, index untouched) · <code>edits &lt;slug&gt; &lt;reviewed&gt;</code> (people's changes after hand-off, the run's files) · <code>later-fixes [--since d] [--days n]</code> (fixes and reverts of runs' lines, by blame) · <code>--root</code> <code>--branch</code></td><td class="n">0 printed<br>2 usage, no repo<br>3 edits: no snapshot</td></tr>
+        <tr><td><code>check-guidelines.sh</code></td><td><code>[--root d]</code>: missing backticked paths, rules without/with unmatched <code>paths</code>, duplicate <code>**G&lt;n&gt;**</code>, lesson-log wording. Spans in <code>guidelines/check-ignore.txt</code> are not paths.</td><td class="n">0 clean · 1 findings<br>2 usage/no repo</td></tr>
+        <tr><td><code>guard-bash.sh</code></td><td>PreToolUse hook. Parses commands like a shell (quotes, escapes, here-docs, <code>;</code> <code>&amp;&amp;</code> <code>|</code>, subshells, <code>bash -c</code>, <code>eval</code>).</td><td class="n">2 blocks</td></tr>
+        <tr><td><code>subagent-stop.sh</code></td><td>SubagentStop hook; counter <code>.state/stop-&lt;agent_id&gt;.count</code>; each block logged to <code>.state/stop-gate.log</code>; off with <code>checks.implement_gate: false</code>.</td><td class="n">2 keep working</td></tr>
+        <tr><td><code>project-hook.sh</code></td><td><code>pre-bash</code> | <code>post-edit</code> → <code>.claude/singularity/hooks/&lt;name&gt;.sh</code>, event JSON on stdin.</td><td class="n">propagated</td></tr>
+        <tr><td><code>skills/tracker/scripts/tasks.sh</code></td><td><code>list [STATE]</code> · <code>get</code> · <code>next</code> · <code>move &lt;ID&gt; &lt;STATE&gt; [--from S,…]</code> · <code>comment</code> · <code>create &lt;slug&gt; [TITLE]</code> · <code>validate</code>; options <code>--dir</code> <code>--id-prefix</code> <code>--status S=P</code> <code>--extra-status P</code> <code>--now</code>. Refuses a folder that isn't git-ignored. bash 3.2 compatible.</td><td class="n">0 ok · 1 invalid/not ignored<br>2 usage · 3 not found<br>4 duplicate ID · 5 conflict</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3 class="ref">Command guard blocks</h3>
+        <ul class="rules">
+          <li>Force-push to a protected branch (<code>--force</code>, <code>--force-with-lease</code>, <code>-f</code>, <code>+refspec</code>, <code>--mirror</code>, <code>--all</code> with force) and deleting one (<code>--delete</code>, <code>:branch</code>).</li>
+          <li>Skipping git hooks: <code>--no-verify</code>, <code>git commit -n</code>, <code>-c core.hooksPath=…</code>, <code>HUSKY=0</code>.</li>
+          <li>Recursive deletes of <code>/</code> or the home directory.</li>
+          <li>Protected: <code>main</code>, <code>master</code>, <code>develop</code>, <code>trunk</code>, <code>production</code>, <code>release</code>, <code>release/*</code>, <code>releases/*</code>, <code>conventions.default_branch</code>.</li>
+          <li>A seatbelt, not a security boundary: protect the default branch on the code host; use <code>/sandbox</code> for enforcement.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="ref">Project hook extension points</h3>
+        <ul class="rules">
+          <li><code>post-edit.sh</code>: after every file edit; exit 2 + stderr → feedback to Claude.</li>
+          <li><code>pre-bash.sh</code>: before every shell command, next to the shared guard; exit 2 blocks.</li>
+          <li><code>verify.sh</code>: run by <code>run-checks.sh</code> as the last check (contract tests, smoke tests).</li>
+          <li><code>post-edit.sh</code> and <code>pre-bash.sh</code> run only while executable. Delete a script to turn it off.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="rules">
+  <div class="wrap">
+    <h2>Rules and limits</h2>
+    <p class="sub">The numbers and decision tables the flow runs on.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Limit</th><th>Value</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Fresh run lock</td><td class="n">&lt; 12 h</td><td>older, or its run stopped/handed off → stale, replaced</td></tr>
+        <tr><td>Check fix rounds</td><td class="n">2</td><td>step 4; then stop early</td></tr>
+        <tr><td>Review fix rounds</td><td class="n">2</td><td>step 5; re-review only lenses that blocked</td></tr>
+        <tr><td>Verify fix rounds</td><td class="n">1</td><td>step 6</td></tr>
+        <tr><td>Stop-gate blocks</td><td class="n">3</td><td><code>checks.stop_retries</code></td></tr>
+        <tr><td>Check output tail</td><td class="n">40 · 60 · 30</td><td>default · verifier · stop gate</td></tr>
+        <tr><td>Human reviews per run</td><td class="n">≤ 10 looked up, ≤ 3 kept</td><td>run lines from the last 90 days, oldest first</td></tr>
+        <tr><td>Optimization due</td><td class="n">10 runs</td><td><code>optimization.every_runs</code>; 0 = never offered</td></tr>
+        <tr><td>Proposals per optimization</td><td class="n">≤ 5</td><td>ranked by harm to the goals × frequency</td></tr>
+        <tr><td>Replay trials</td><td class="n">≥ 3</td><td>per variant and case; 1–2 case differences are noise</td></tr>
+        <tr><td>Eval spend ceiling</td><td class="n">$10</td><td><code>optimization.max_eval_cost_usd</code></td></tr>
+        <tr><td>Holdout cases</td><td class="n">every 5th</td><td><code>holdout: true</code>; never tuned on</td></tr>
+        <tr><td>Guidelines per file</td><td class="n">60 · 40</td><td><code>learning.max_lines_per_file</code> · <code>project.md</code>; a wrapped guideline counts once</td></tr>
+        <tr><td>Context size</td><td class="n">~60 · ~40 lines</td><td><code>CLAUDE.md</code> project sections · <code>goals.md</code></td></tr>
+        <tr><td>Line width</td><td class="n">80 columns</td><td>guidelines, rules, eval cases, archive, upstream reports, templates</td></tr>
+        <tr><td>Onboarding eval cases</td><td class="n">≤ 10</td><td>from merged PRs/MRs where a human caught a real defect</td></tr>
+        <tr><td>Canary check</td><td class="n">10 runs</td><td>on a release (<code>plugin_version</code> without <code>+dev</code>)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3 class="ref">Sizing</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Size</th><th>When</th><th>What runs</th></tr></thead>
+      <tbody>
+        <tr><td><code>small</code></td><td>fits one sentence and a few files in one area; nothing on the risk list; a defect only if its cause is known</td><td>AC-only spec, its gate, implement without a plan; review: correctness (+ security near the risk list); checks and verify as always</td></tr>
+        <tr><td><code>standard</code></td><td>everything else (<code>full</code> forces it); the default when in doubt</td><td>every stage</td></tr>
+        <tr><td><code>large</code></td><td>many modules, a migration, a public API or client contract, a design with open choices</td><td>every stage + a second, independent correctness pass in reverse <code>change.stat</code> order</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub"><b>Risk list:</b> authentication, authorization, payments, personal or customer data, cryptography and secrets, migrations and schema changes, public APIs and client contracts, concurrency, dependencies, "Do not touch" areas. A change that grows beyond <code>small</code> while built is reviewed as <code>standard</code>.</p>
+
+    <div class="cols">
+      <div>
+        <h3 class="ref">Root causes (learn job)</h3>
+        <div class="tbl"><table style="min-width:0">
+          <thead><tr><th>Cause</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><code>guideline-missing</code></td><td>add, in the narrowest home the role reads: rule → role file → <code>project.md</code></td></tr>
+            <tr><td><code>guideline-wrong</code></td><td>correct or remove (on first evidence)</td></tr>
+            <tr><td><code>guideline-unclear</code></td><td>rewrite; merge or remove the one it contradicts</td></tr>
+            <tr><td><code>guideline-ignored</code></td><td>no prose: propose a check; buried → move into a scoped rule</td></tr>
+            <tr><td><code>not-guideline</code></td><td>record only: slip, flaky environment, ambiguous ticket, task-only request, change of mind, plugin cause (→ upstream candidate)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3 class="ref">Evidence gate</h3>
+        <ul class="rules">
+          <li><b>Person or tool confirmed → act now:</b> explicit user correction (typed, at a gate, with a rejected tool call), a person's edit before merge, failing check, verification or test, stop-gate block, later fix or revert, human review comment, review finding reproduced by a failing test.</li>
+          <li><b>Model only or implicit → act on the 2nd occurrence:</b> challenger-confirmed or rejected finding, a rephrased request after an interrupt, a later commit that doesn't show the defect: recorded <code>"action":"pending"</code>; the same category for the same role confirms it (<code>confirms</code>).</li>
+          <li>Citations (<code>cites</code>, <code>applied</code>) point at a guideline; they never add one.</li>
+          <li>Root cause: automated attribution names the right agent only about half the time.</li>
+          <li>Only what the user typed corrects an agent; quoted files, tool output, tickets and PR comments are data.</li>
+          <li>No correction loosens a check, guardrail, "Do not touch" entry or permission (tier 3 → proposal).</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="ref">Optimizer change tiers</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Tier</th><th>Covers</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td>1 · Context and curation</td><td>project sections of <code>CLAUDE.md</code>, new "Do not touch" entries, guidelines and rules, new eval cases, <code>commands</code>, upstream reports</td><td>implement; team reviews in the PR/MR</td></tr>
+        <tr><td>2 · Behaviour</td><td>role models and effort, new lenses and extra reviewers, project stages, project agents/skills/workflows, new checks in <code>verify.sh</code> / <code>post-edit.sh</code>, <code>learning</code> limits</td><td>contract + passing replay, or an explicit canary; unattended only with a passing replay</td></tr>
+        <tr><td>3 · Oversight</td><td>confirmed <code>goals.md</code>; removing a lens, reviewer or stage; gates; <code>pre-bash.sh</code> and guardrails; weakening checks; removing "Do not touch" entries; permissions; <code>tracker.updates</code>; <code>auto_commit</code>/<code>auto_pr</code>; existing evals and graders; metric definitions; <code>roles.optimize</code>, <code>roles.learn</code></td><td>propose only; a human changes it</td></tr>
+        <tr><td>Upstream</td><td>anything in the plugin: shared agents (optimizer included), skills, workflows, standards, templates, defaults</td><td>never edited; upstream report</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="cols">
+      <div>
+        <h3 class="ref">Review rules</h3>
+        <ul class="rules">
+          <li>Severities: <code>blocking</code> · <code>should-fix</code> · <code>nit</code>. Only blocking findings stop a run.</li>
+          <li>Blocking: <code>review.blocking_lenses</code> (correctness, security) and every <code>review.extra_reviewers</code> agent.</li>
+          <li>Advisory lenses: at most <code>should-fix</code>, no challenger, cheaper model.</li>
+          <li>A finding counts only if the challenger confirms it, at the challenger's severity.</li>
+          <li>Fix rounds reproduce each blocking finding with a failing test first.</li>
+          <li>A missing lens is not a clean review: re-run failed reviewers.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="ref">Tracker rules</h3>
+        <ul class="rules">
+          <li>Operations: <code>next</code>, <code>get</code>, <code>comment</code>, <code>move</code>, <code>link</code>, <code>create</code>, <code>open_change</code>, <code>find_change</code>, <code>list_changes</code>, <code>review_comments</code>.</li>
+          <li>Logical states <code>todo</code>, <code>in_progress</code>, <code>in_review</code>, <code>blocked</code>, <code>done</code> map through <code>tracker.states</code>; unmapped → move skipped.</li>
+          <li>Read-only operations need no confirmation; <code>comment</code>/<code>move</code>/<code>link</code> only when a stage calls for them and <code>tracker.updates</code> isn't false.</li>
+          <li><code>create</code>, closing and deleting need an explicit request. Never paste secrets or customer data.</li>
+          <li>Missing CLI/MCP auth → name exactly what's missing, continue without the tracker.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="ref">Optimizer never</h3>
+        <ul class="rules">
+          <li>touches product code or the plugin's files (installed or <code>--plugin-dir</code>);</li>
+          <li>merges, or pushes to a default branch; changes the plugin version or tags;</li>
+          <li>files an upstream report without an explicit yes, or puts anything identifying the project in one;</li>
+          <li>records secrets, personal or customer data, or blame;</li>
+          <li>claims an improvement without a measured comparison.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="files">
+  <div class="wrap">
+    <h2>Files</h2>
+    <p class="sub">Stages communicate through these files. The work dir is git-ignored; everything under <code>.claude/</code> except local settings is committed.</p>
+    <div class="cols">
+      <div>
+        <h3 class="ref">Work dir (<code>conventions.work_dir</code>)</h3>
+<pre class="tree">.agentic/work/
+├── .state/                    .gitignore "*"
+│   ├── active-run             run lock: slug, session, time
+│   ├── baseline-failures      checks failing before the change
+│   ├── frozen-tests.txt       test-guard freeze list
+│   ├── stop-gate.log          stop-gate blocks, per run
+│   └── stop-&lt;agent_id&gt;.count  stop-gate counter
+├── corrections/               queued corrections (self-ignored)
+├── &lt;slug&gt;/                     one per run, e.g. t7-fix-login
+│   ├── run.json               run record: resume + learn
+│   ├── spec.md, spec.draft.md
+│   ├── plan.md, plan.draft.md not for small
+│   ├── checks.json            step 4 results
+│   ├── change.diff, .stat     whole change, new files too
+│   ├── review.md              confirmed · unverified ·
+│   │                          advisory · rejected
+│   ├── verify-checks.json     verifier's check run
+│   ├── summary.md             hand-off report
+│   ├── human-review.md        learning.pr_reviews only
+│   └── human-edits.diff       people's edits after hand-off
+└── optimizer-&lt;date&gt;-&lt;job&gt;/    optimizer run dir:
+                               worktree/, onboarding.md,
+                               evidence.json/.md,
+                               proposals.md</pre>
+      </div>
+      <div>
+        <h3 class="ref">Committed in the project</h3>
+<pre class="tree">CLAUDE.md                      @-imports config + project.md
+.claude/
+├── settings.json              marketplace, enabledPlugins
+├── singularity.md             config + "Do not touch"
+├── singularity/
+│   ├── goals.md               Status: draft | confirmed
+│   ├── correction-patterns.txt   optional, ERE per line
+│   ├── guidelines/            project.md (every session)
+│   │                          spec plan implement review
+│   │                          verify .md, check-ignore.txt
+│   ├── experience/            runs.jsonl, optimizations.md,
+│   │                          upstream.md, README.md
+│   ├── evals/&lt;id&gt;/             case.md, change.patch
+│   ├── upstream/              U-&lt;date&gt;-&lt;n&gt;-&lt;slug&gt;.md
+│   └── hooks/                 post-edit, pre-bash, verify .sh
+├── rules/singularity/&lt;area&gt;.md  paths-scoped guidelines
+├── agents/&lt;name&gt;.md           project agents
+├── workflows/&lt;name&gt;.js        project workflows
+└── skills/&lt;name&gt;/SKILL.md     project commands
+.mcp.json                      Jira only
+.tasks/                        files tracker (git-ignored)</pre>
+      </div>
+      <div>
+        <h3 class="ref">The plugin</h3>
+<pre class="tree">plugins/singularity/
+├── .claude-plugin/plugin.json version (only here)
+├── agents/      spec-writer planner implementer
+│                reviewer verifier optimizer
+├── optimizer/   learn onboard optimize upstream
+├── skills/      feature init-project
+│                tracker (+ jira github gitlab files)
+│                engineering-standards
+├── workflows/   optimize-scan.js replay-evals.js
+├── hooks/       hooks.json
+├── scripts/     guards, checks, correction capture,
+│                guideline check
+├── evals/       plugin regression suite
+└── templates/   project files, Jira MCP config</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap">
+    <h2>Config: <code>.claude/singularity.md</code></h2>
+    <p class="sub">Write overrides only: a key left out follows the shared default, so new releases keep reaching the project. Sessions load it at start, so restart after a change.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Key</th><th>Default</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>commands.{install, build, lint, typecheck, test, format}</code></td><td><code>TODO</code></td><td>run by <code>run-checks.sh</code>, the stop gate and the verifier; <code>TODO</code> or unset = skipped</td></tr>
+        <tr><td><code>commands.test_one</code></td><td><code>TODO</code></td><td>one test file, e.g. <code>npm test -- {file}</code>; the implementer's targeted runs</td></tr>
+        <tr><td><code>commands.test_unit / test_integration / test_e2e</code></td><td>optional</td><td>test pyramid layers</td></tr>
+        <tr><td><code>conventions.default_branch</code></td><td><code>main</code></td><td>base for the change; protected by the guard</td></tr>
+        <tr><td><code>conventions.branch</code></td><td><code>feature/{ticket}-{slug}</code></td><td>implement branch</td></tr>
+        <tr><td><code>conventions.commits</code></td><td><code>conventional</code></td><td>commit style</td></tr>
+        <tr><td><code>conventions.work_dir</code></td><td><code>.agentic/work</code></td><td>run files, locks, corrections queue</td></tr>
+        <tr><td><code>conventions.auto_commit / auto_pr</code></td><td><code>false</code></td><td>hand-off commits / opens a draft PR/MR</td></tr>
+        <tr><td><code>conventions.breaking_changes</code></td><td><code>forbidden</code></td><td><code>allowed</code>: refactors may drop compatibility; client contracts still tested</td></tr>
+        <tr><td><code>tracker.type</code></td><td><code>none</code></td><td><code>jira</code> · <code>github</code> · <code>gitlab</code> · <code>files</code> · <code>none</code></td></tr>
+        <tr><td><code>tracker.files.{dir, id_prefix, statuses, extra_statuses}</code></td><td><code>.tasks</code>, <code>T</code></td><td>task files <code>STATUS-ID-slug</code>; default statuses <code>TODO PROGRESS REVIEW BLOCKED DONE</code></td></tr>
+        <tr><td><code>tracker.states</code></td><td>In Progress / In Review / Done</td><td>logical state → Jira status or GitHub/GitLab label</td></tr>
+        <tr><td><code>tracker.updates</code></td><td><code>true</code></td><td><code>false</code>: read tickets, never comment or move</td></tr>
+        <tr><td><code>code_host.type</code></td><td><code>github</code></td><td><code>github</code> · <code>gitlab</code> · <code>none</code>; set independently of the tracker</td></tr>
+        <tr><td><code>roles.&lt;role&gt;.{agent, model, effort}</code></td><td><code>{}</code></td><td>rebind or retune a role; <code>roles.learn</code>: model/effort of the learn job</td></tr>
+        <tr><td><code>review.lenses</code></td><td>correctness, security, maintainability, testability</td><td>drop a shared lens only with a written reason</td></tr>
+        <tr><td><code>review.extra_lenses</code></td><td><code>[]</code></td><td><code>{ name, description }</code>; advisory unless in <code>blocking_lenses</code></td></tr>
+        <tr><td><code>review.extra_reviewers</code></td><td><code>[]</code></td><td>project agents; always can block</td></tr>
+        <tr><td><code>review.blocking_lenses</code></td><td>correctness, security</td><td>the only lenses that can block</td></tr>
+        <tr><td><code>review.advisory</code></td><td><code>{ model: sonnet, effort: high }</code></td><td>model for advisory lenses</td></tr>
+        <tr><td><code>checks.run</code></td><td><code>[build, lint, typecheck, test]</code></td><td>names from <code>commands</code></td></tr>
+        <tr><td><code>checks.implement_gate</code></td><td><code>true</code></td><td>stop gate on the implementer</td></tr>
+        <tr><td><code>checks.stop_retries</code></td><td><code>3</code></td><td>stop-gate blocks in a row</td></tr>
+        <tr><td><code>checks.test_pattern</code></td><td>common layouts</td><td>ERE on paths that are tests</td></tr>
+        <tr><td><code>stages.{after_plan, after_implement, before_handoff}</code></td><td><code>[]</code></td><td>project agents inserted into the pipeline</td></tr>
+        <tr><td><code>learning.enabled</code></td><td><code>true</code></td><td><code>false</code>: no learn step, no corrections, no human-review learning, no digests</td></tr>
+        <tr><td><code>learning.dir</code></td><td><code>.claude/singularity/experience</code></td><td>the record</td></tr>
+        <tr><td><code>learning.max_lines_per_file</code></td><td><code>60</code></td><td>guidelines per file (<code>project.md</code>: 40)</td></tr>
+        <tr><td><code>learning.corrections</code></td><td><code>true</code></td><td>capture corrections from prompts, interrupts and rejected tool calls</td></tr>
+        <tr><td><code>learning.later_fixes</code></td><td><code>true</code></td><td>trace later fixes and reverts of pipeline runs' lines (<code>outcomes.sh later-fixes</code>)</td></tr>
+        <tr><td><code>learning.pr_reviews</code></td><td><code>false</code></td><td>learn from human PR/MR review comments and edits before merge (needs a code host)</td></tr>
+        <tr><td><code>optimization.every_runs</code></td><td><code>10</code></td><td>offer an optimization after this many runs; 0 = never</td></tr>
+        <tr><td><code>optimization.web_scan</code></td><td><code>true</code></td><td>practice scan for new Claude Code features, models, research</td></tr>
+        <tr><td><code>optimization.max_eval_cost_usd</code></td><td><code>10</code></td><td>ceiling for validation replays</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">Source of truth: <code>plugins/singularity/</code> in <a href="https://github.com/hlistan/singularity">hlistan/singularity</a> at 0.5.0: <code>skills/feature/SKILL.md</code>, <code>agents/*.md</code>, <code>optimizer/*.md</code>, <code>hooks/hooks.json</code>, <code>scripts/*.sh</code>. When they disagree with this page, they win.</footer>
+
+<script>
+(function () {
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+
+  /* ---------- schema geometry ---------- */
+  var M = 170, MW = 260, R = 510, RW = 190, L = 10, LW = 120;
+  var A_NODES = [
+    { id: "request", k: "cmd", x: M, y: 16, w: MW, h: 52, t: "/singularity:feature", s: ["<ticket | text | next> [flags]"] },
+    { id: "setup", k: "orch", x: M, y: 96, w: MW, h: 52, t: "0 · Resolve setup", s: ["config · lock · ticket · size"] },
+    { id: "spec", k: "role", rc: "spec", x: M, y: 176, w: MW, h: 52, t: "1 · Spec", s: ["spec-writer · opus · high"] },
+    { id: "gate1", k: "gate", x: M, y: 256, w: MW, h: 52, t: "Gate · approve spec", s: ["goal · ACs · open questions"] },
+    { id: "plan", k: "role", rc: "plan", x: M, y: 336, w: MW, h: 52, t: "2 · Plan", s: ["planner · opus · high"] },
+    { id: "gate2", k: "gate", x: M, y: 416, w: MW, h: 52, t: "Gate · approve plan", s: ["approach · steps · risks"] },
+    { id: "afterplan", k: "stage", x: M, y: 502, w: MW, h: 40, t: "stages.after_plan", s: [] },
+    { id: "impl", k: "role", rc: "impl", x: M, y: 576, w: MW, h: 52, t: "3 · Implement", s: ["implementer · sonnet · medium"] },
+    { id: "afterimpl", k: "stage", x: M, y: 662, w: MW, h: 40, t: "stages.after_implement", s: [] },
+    { id: "checks", k: "mech", x: M, y: 736, w: MW, h: 52, t: "4 · Checks", s: ["run-checks · test-guard · diff"] },
+    { id: "review", k: "role", rc: "review", x: M, y: 816, w: MW, h: 52, t: "5 · Review", s: ["lenses ∥ → challenge blockers"] },
+    { id: "verify", k: "role", rc: "verify", x: M, y: 896, w: MW, h: 52, t: "6 · Verify", s: ["verifier · sonnet · medium"] },
+    { id: "beforeho", k: "stage", x: M, y: 982, w: MW, h: 40, t: "stages.before_handoff", s: [] },
+    { id: "handoff", k: "orch", x: M, y: 1056, w: MW, h: 52, t: "7 · Hand-off", s: ["summary.md · commit/PR per config"] },
+    { id: "learn", k: "role", rc: "opt", x: M, y: 1136, w: MW, h: 52, t: "8 · Learn", s: ["optimizer learn job · opus · high"] },
+    { id: "optcheck", k: "orch", x: M, y: 1216, w: MW, h: 52, t: "9 · Optimization check", s: ["onboard · goals · optimize · upstream"] },
+    { id: "freezeguard", k: "mech", x: R, y: 496, w: RW, h: 56, t: "Frozen-test guard", s: ["PreToolUse · exit 2"] },
+    { id: "stopgate", k: "mech", x: R, y: 568, w: RW, h: 68, t: "Stop gate", s: ["SubagentStop hook", "checks fail → exit 2"] },
+    { id: "fix", k: "role", rc: "impl", x: R, y: 736, w: RW, h: 212, t: "Fix round", s: ["implementer · effort high", "", "checks fail: ≤ 2 rounds", "blocking: ≤ 2 rounds", "verify FAIL: 1 round", "", "blocker → failing test", "first, or not reproduced"] },
+    { id: "stop", k: "stop", x: L, y: 736, w: LW, h: 212, t: "Stop early", s: ["checks: 2 rounds", "review: 2 rounds", "verify: 1 round", "stage: user stops", "", "move → blocked", "comment reason", "then learn"] }
+  ];
+  var CHAIN = ["request", "setup", "spec", "gate1", "plan", "gate2", "afterplan", "impl", "afterimpl", "checks", "review", "verify", "beforeho", "handoff", "learn", "optcheck"];
+  var CHAIN_LABELS = { "spec>gate1": "spec.md", "gate1>plan": "approved", "plan>gate2": "plan.md", "gate2>afterplan": "approved", "checks>review": "exit 0 · change.diff", "review>verify": "no blockers", "verify>beforeho": "PASS", "handoff>learn": "before commit" };
+  var A_EDGES = [
+    { id: "gate1>impl", p: [[170, 282], [150, 282], [150, 602], [170, 602]], dash: true, lab: [[142, 430, "small:", "end"], [142, 443, "no plan", "end"]] },
+    { id: "impl>freezeguard", p: [[430, 584], [452, 584], [452, 524], [510, 524]], lab: [[484, 517, "edit test", "middle"]] },
+    { id: "impl>stopgate", p: [[430, 598], [510, 598]], lab: [[470, 592, "stops", "middle"]] },
+    { id: "stopgate>impl", p: [[510, 620], [430, 620]], lab: [[470, 634, "exit 2", "middle"]] },
+    { id: "checks>fix", p: [[430, 762], [510, 762]], lab: [[470, 756, "exit 1", "middle"]] },
+    { id: "review>fix", p: [[430, 842], [510, 842]], lab: [[470, 836, "blocking", "middle"]] },
+    { id: "verify>fix", p: [[430, 922], [510, 922]], lab: [[470, 916, "FAIL", "middle"]] },
+    { id: "fix>checks", p: [[560, 736], [560, 720], [400, 720], [400, 736]], lab: [[480, 714, "re-run step 4", "middle"]] },
+    { id: "checks>stop", p: [[170, 776], [130, 776]] },
+    { id: "review>stop", p: [[170, 856], [130, 856]] },
+    { id: "verify>stop", p: [[170, 936], [130, 936]] },
+    { id: "stop>learn", p: [[70, 948], [70, 1162], [170, 1162]], lab: [[78, 1100, "step 8", "start"]] }
+  ];
+
+  var G = [10, 190, 370, 550], GW = 150, O5 = [10, 153, 296, 439, 582], OW = 126;
+  var B_NODES = [
+    { id: "ob_init", k: "cmd", x: G[0], y: 30, w: GW, h: 56, t: "init-project", s: ["config · settings"] },
+    { id: "ob_survey", k: "role", rc: "opt", x: G[1], y: 30, w: GW, h: 56, t: "Onboard · survey", s: ["read-only · Explore"] },
+    { id: "ob_context", k: "role", rc: "opt", x: G[2], y: 30, w: GW, h: 56, t: "Write context", s: ["goals · CLAUDE.md"] },
+    { id: "ob_gate", k: "gate", x: G[3], y: 30, w: GW, h: 56, t: "Confirm goals", s: ["choose canaries"] },
+    { id: "sig_run", k: "orch", x: O5[0], y: 134, w: OW, h: 56, t: "Run record", s: ["run.json · checks"] },
+    { id: "sig_corr", k: "mech", x: O5[1], y: 134, w: OW, h: 56, t: "Corrections", s: ["hooks → queue"] },
+    { id: "sig_later", k: "mech", x: O5[2], y: 134, w: OW, h: 56, t: "Later fixes", s: ["blame · reverts"] },
+    { id: "sig_human", k: "orch", x: O5[3], y: 134, w: OW, h: 56, t: "Human reviews", s: ["comments · edits"] },
+    { id: "sig_diff", k: "orch", x: O5[4], y: 134, w: OW, h: 56, t: "Run's own change", s: ["git diff <base>"] },
+    { id: "l_job", k: "role", rc: "opt", x: 190, y: 232, w: 330, h: 52, t: "Learn job", s: ["optimizer · opus · high · no subagents"] },
+    { id: "l_cause", k: "orch", x: 150, y: 316, w: 200, h: 64, t: "Root cause", s: ["missing · wrong · unclear", "ignored · not-guideline"] },
+    { id: "l_gate", k: "gate", x: 380, y: 316, w: 200, h: 64, t: "Evidence gate", s: ["person/tool: act now", "model, implicit: 2nd"] },
+    { id: "o_guidelines", k: "file", x: O5[0], y: 432, w: OW, h: 56, t: "Guidelines", s: ["add · fix · remove"] },
+    { id: "o_check", k: "file", x: O5[1], y: 432, w: OW, h: 56, t: "Proposed check", s: ["guideline-ignored"] },
+    { id: "o_record", k: "file", x: O5[2], y: 432, w: OW, h: 56, t: "runs.jsonl", s: ["one line per item"] },
+    { id: "o_eval", k: "file", x: O5[3], y: 432, w: OW, h: 56, t: "Eval case", s: ["escaped defect"] },
+    { id: "o_upcand", k: "file", x: O5[4], y: 432, w: OW, h: 56, t: "upstream.md", s: ["any-project rule"] },
+    { id: "op_evidence", k: "role", rc: "opt", x: G[0], y: 532, w: GW, h: 56, t: "1 · Evidence", s: ["optimize-scan"] },
+    { id: "op_propose", k: "role", rc: "opt", x: G[1], y: 532, w: GW, h: 56, t: "2 · Propose", s: ["≤ 5, by harm"] },
+    { id: "op_challenge", k: "role", rc: "review", x: G[2], y: 532, w: GW, h: 56, t: "3 · Challenge", s: ["reviewer Task C"] },
+    { id: "op_gate", k: "gate", x: G[3], y: 532, w: GW, h: 56, t: "4 · Gate", s: ["you pick what ships"] },
+    { id: "op_impl", k: "role", rc: "opt", x: G[3], y: 622, w: GW, h: 56, t: "5 · Implement", s: ["1 commit / proposal"] },
+    { id: "op_validate", k: "mech", x: G[2], y: 622, w: GW, h: 56, t: "6 · Validate", s: ["replay ×3 · canary"] },
+    { id: "op_deliver", k: "role", rc: "opt", x: G[1], y: 622, w: GW, h: 56, t: "7–8 · Deliver", s: ["archive · draft PR/MR"] },
+    { id: "up_report", k: "file", x: G[0], y: 718, w: GW, h: 56, t: "Upstream report", s: ["U-…-slug.md · draft"] },
+    { id: "up_merge", k: "gate", x: G[1], y: 718, w: GW, h: 56, t: "Team merges PR", s: ["draft = approved"] },
+    { id: "up_file", k: "gate", x: G[2], y: 718, w: GW, h: 56, t: "File issue", s: ["only on explicit yes"] },
+    { id: "up_release", k: "ext", x: G[3], y: 718, w: GW, h: 56, t: "Maintainers", s: ["eval → fix → release"] }
+  ];
+  function bus(cx, y0, yb, xt, yt) { return [[cx, y0], [cx, yb], [xt, yb], [xt, yt]]; }
+  var B_EDGES = [
+    { id: "ob_init>ob_survey", p: [[160, 58], [190, 58]] },
+    { id: "ob_survey>ob_context", p: [[340, 58], [370, 58]] },
+    { id: "ob_context>ob_gate", p: [[520, 58], [550, 58]] },
+    { id: "sig_run>l_job", p: bus(73, 190, 210, 355, 232) },
+    { id: "sig_corr>l_job", p: bus(216, 190, 210, 355, 232) },
+    { id: "sig_later>l_job", p: bus(359, 190, 210, 355, 232) },
+    { id: "sig_human>l_job", p: bus(502, 190, 210, 355, 232) },
+    { id: "sig_diff>l_job", p: bus(645, 190, 210, 355, 232) },
+    { id: "l_job>l_cause", p: [[250, 284], [250, 316]] },
+    { id: "l_cause>l_gate", p: [[350, 348], [380, 348]] },
+    { id: "l_gate>o_guidelines", p: bus(480, 380, 406, 73, 432) },
+    { id: "l_gate>o_check", p: bus(480, 380, 406, 216, 432) },
+    { id: "l_gate>o_record", p: bus(480, 380, 406, 359, 432) },
+    { id: "l_gate>o_eval", p: bus(480, 380, 406, 502, 432) },
+    { id: "l_gate>o_upcand", p: bus(480, 380, 406, 645, 432) },
+    { id: "o_record>op_evidence", p: [[359, 488], [359, 510], [85, 510], [85, 532]], lab: [[222, 504, "≥ every_runs digests", "middle"]] },
+    { id: "op_evidence>op_propose", p: [[160, 560], [190, 560]] },
+    { id: "op_propose>op_challenge", p: [[340, 560], [370, 560]] },
+    { id: "op_challenge>op_gate", p: [[520, 560], [550, 560]] },
+    { id: "op_gate>op_impl", p: [[625, 588], [625, 622]] },
+    { id: "op_impl>op_validate", p: [[550, 650], [520, 650]] },
+    { id: "op_validate>op_deliver", p: [[370, 650], [340, 650]] },
+    { id: "op_deliver>up_merge", p: [[265, 678], [265, 718]], lab: [[273, 702, "draft PR/MR", "start"]] },
+    { id: "up_report>up_merge", p: [[160, 746], [190, 746]] },
+    { id: "up_merge>up_file", p: [[340, 746], [370, 746]] },
+    { id: "up_file>up_release", p: [[520, 746], [550, 746]] }
+  ];
+  var B_LABELS = [[10, 22, "ONBOARDING · ONCE, AND WHEN THE PROJECT CHANGES"], [10, 126, "SIGNALS · EVERY RUN"], [10, 256, "LEARN"], [10, 270, "STEP 8"], [10, 424, "OUTPUTS"], [10, 526, "OPTIMIZE · EVERY 10 RUNS"], [10, 712, "UPSTREAM · CAUSE IN THE SHARED PLUGIN"]];
+
+  /* ---------- node details ---------- */
+  function c(s) { return "<code>" + s + "</code>"; }
+  var D = {
+request: { kicker: "Command", title: "/singularity:feature", chips: ["skills/feature/SKILL.md", "disable-model-invocation: true"], body:
+'<p>The orchestrator. It writes no spec, plan or code: it delegates each stage to the agent bound to the role, and stages pass work through files in the work dir, never through its summaries.</p>' +
+'<h4>Arguments</h4><table class="kv">' +
+'<tr><td>' + c("ABC-123") + ' ' + c("#123") + ' ' + c("T42") + ', URL</td><td>tracker ticket: read, moved, commented</td></tr>' +
+'<tr><td>plain text</td><td>the text is the ticket; no tracker reads or updates; slug from the request</td></tr>' +
+'<tr><td>' + c("next") + ' (or empty)</td><td>files tracker: first ' + c("TODO") + ' task (lowest ' + c("priority") + ', then ID), claimed by rename. Other trackers: asks which ticket. Never resumes.</td></tr>' +
+'<tr><td>' + c("no-gates") + '</td><td>skips both approval gates; does not make the run unattended</td></tr>' +
+'<tr><td>' + c("small") + ' · ' + c("full") + '</td><td>forces size small / standard</td></tr></table>' +
+'<h4>Kinds of work</h4><p>Feature, defect or QA issue, refactoring: one pipeline; the spec role is told the kind. Defect: the spec starts with the reproduction and the plan with the failing test. Refactoring: ' + c("conventions.breaking_changes") + ' decides compatibility.</p>' +
+'<h4>Unattended</h4><p>A scheduled or headless run, where nobody can answer. It changes behaviour at the lock, the uncommitted-work check, resume, project stages, hand-off and the optimization offer (<a data-scn="unattended">scenario</a>).</p>' },
+
+setup: { kicker: "Orchestrator · step 0", title: "Resolve the project setup", chips: ["run.json", ".state/active-run"], body:
+'<ol><li><b>Config</b> ' + c(".claude/singularity.md") + ', imported through CLAUDE.md. Missing → stop: run ' + c("/singularity:init-project") + '.</li>' +
+'<li><b>Pre-0.5.0 lessons</b> in ' + c("learning.dir") + ' (' + c("project.md") + ' or a role file), or CLAUDE.md imports ' + c("experience/project.md") + ' → spawn optimize with ' + c("migrate, in this checkout, for /singularity:feature") + '; the result is uncommitted and part of this run. Attended: user picks migrate or stop.</li>' +
+'<li><b>Role bindings</b>: ' + c("roles.&lt;role&gt;.agent") + ' or the default. Pass ' + c("model") + '/' + c("effort") + ' only if the config sets them. Exceptions: learn job → ' + c("roles.learn") + ', else opus · high; fix rounds → ' + c("effort: high") + ' unless ' + c("roles.implement.effort") + '.</li>' +
+'<li><b>Run lock</b> ' + c("&lt;work_dir&gt;/.state/active-run") + ' (slug, session, time). Another run &lt; 12 h old → stop, name it, point to ' + c("claude --worktree &lt;name&gt;") + '. Older, or its run stopped or handed off → stale: replace. Unattended: stop on any lock.</li>' +
+'<li><b>Uncommitted changes</b> outside the work dir that aren\'t this run\'s → stop unless the user says go on. Unattended: stop.</li>' +
+'<li><b>Ticket</b>: ' + c("next()") + ' / ' + c("get()") + '; ' + c("todo") + ' → ' + c("move(in_progress)") + ' (files tracker: the claim; lost race → ' + c("next()") + ' again). Named ticket already ' + c("in_progress") + '/' + c("blocked") + '/' + c("in_review") + ' → show status + last log lines, ask to resume. ' + c("done") + ' → stop unless reopened.</li>' +
+'<li><b>Size</b> ' + c("small") + ' · ' + c("standard") + ' · ' + c("large") + ' (<a href="#rules">table</a>); say which and why.</li>' +
+'<li><b>Work dir</b> ' + c("&lt;work_dir&gt;/&lt;slug&gt;/") + '; slug = lower-case ticket ID + kebab name (' + c("t7-fix-login") + '). Files tracker: comment ' + c("Started: &lt;path&gt;") + '. ' + c("started") + ' from ' + c("date -u +%FT%TZ") + '.</li></ol>' +
+'<h4>run.json, after every stage and gate</h4><ul><li>stages done with duration and tokens; gate shown/approved times</li><li>kind, size, goal served; branch, base commit, PR/MR</li><li>each checks run per check; test-guard output; failed verify commands with the failing line</li><li>fix rounds, review rounds, every finding (challenger-only or test-reproduced)</li><li>model each role ran on; ' + c("plugin_version") + ', ' + c("+dev") + ' when not under ' + c("/plugins/cache/") + ' or ' + c("/plugins/marketplaces/") + '</li><li>gate edits and their kind; stop reason</li></ul>' },
+
+spec: { kicker: "Role · spec · step 1", title: "Spec writer", chips: ["singularity:spec-writer", "opus · high", "Read Grep Glob Write"], body:
+'<p>Turns the request into a spec an engineer who never saw the ticket could implement and test. Reads the touched code only for real names; does not design.</p>' +
+'<h4>Reads</h4><ul><li>' + c(".claude/singularity/guidelines/spec.md") + ', matching rules in ' + c(".claude/rules/singularity/") + '</li><li>' + c("goals.md") + ' if ' + c("Status: confirmed") + ': names the goal; a request against a goal becomes an open question</li></ul>' +
+'<h4>Writes spec.md</h4><ul><li><b>Goal</b> from goals.md, or ' + c("maintenance") + '</li><li><b>Problem</b> (2–5 sentences), <b>Scope</b> in / out</li><li><b>Acceptance criteria</b>, numbered, testable, each with boundary (empty, null, malformed, limits) and failure modes (timeouts, retries, exception states)</li><li>Defect: AC 1 is the reproduction (steps or input, observed vs expected), then the root-cause hypothesis and code path</li><li>Refactoring: scope, ' + c("breaking_changes") + ', client contracts to keep</li><li>Edge cases, non-functional requirements, <b>open questions</b> each with a proposed default</li></ul>' +
+'<h4>Small change</h4><p>Goal, one-line problem, ACs, open questions only. Says the change isn\'t small if it needs more than a few files in one area or touches the risk list.</p>' +
+'<h4>Returns</h4><p>AC count and the open questions verbatim. The orchestrator copies the result to ' + c("spec.draft.md") + '; the learn job diffs it against the approved ' + c("spec.md") + '.</p>' },
+
+gate1: { kicker: "Human gate", title: "Approve the spec", chips: ["gate_wait_s", "gate_edits"], body:
+'<p>Shows the goal, the acceptance criteria and the open questions, then stops. Answer the questions, ask for changes or edit ' + c("spec.md") + ', then approve.</p>' +
+'<ul><li>Shown and approved times → ' + c("gate_wait_s") + ' in the digest.</li><li>Your edits (' + c("spec.draft.md") + ' vs ' + c("spec.md") + ') are user corrections for the learn job: confirmed by a person, acted on at once.</li><li>Skipped by ' + c("no-gates") + ' or when the user says so.</li><li>On resume, a gate not recorded as approved is shown again.</li><li>Small change: the only gate; implement follows without a plan.</li></ul>' },
+
+plan: { kicker: "Role · plan · step 2", title: "Planner", chips: ["singularity:planner", "opus · high", "Bash read-only"], body:
+'<p>A plan a fast implementer executes without re-deriving it: files, functions, the existing pattern to copy.</p>' +
+'<h4>Rules</h4><ul><li>Bash only for read-only inspection; writes nothing but the plan</li><li>Existing patterns first; name the file copied from</li><li>Respect "Do not touch"; trade-offs follow ' + c("goals.md") + ' (if confirmed), noted in Risks</li><li>Reads ' + c("guidelines/plan.md") + ' and matching rules</li></ul>' +
+'<h4>Writes plan.md</h4><ul><li><b>Approach</b> + rejected alternative</li><li><b>Steps</b> as ' + c("- [ ] 1. …") + ' (resume relies on them): files; tests to write first, mapped to AC numbers, with layer (unit, integration, contract/e2e); obsolete tests and fixtures; debt to remove; the exact ' + c("test_one") + ' command</li><li><b>Design</b>: how dependencies are injected; where configurable values live</li><li><b>Risks</b>, <b>Out of scope</b></li></ul>' +
+'<p>Skipped for ' + c("small") + '. Result copied to ' + c("plan.draft.md") + '. Returns steps, files touched, top risks.</p>' },
+
+gate2: { kicker: "Human gate", title: "Approve the plan", chips: ["plan.draft.md"], body:
+'<p>Shows the approach, steps and risks, then stops for approval. Same rules as the spec gate: edits are corrections, times are recorded, ' + c("no-gates") + ' skips it, an unapproved gate is re-shown on resume.</p><p>Then the ' + c("stages.after_plan") + ' agents run.</p>' },
+
+afterplan: { kicker: "Project stage", title: "stages.after_plan", chips: [".claude/agents/&lt;name&gt;.md"], body:
+'<p>Project agents run one at a time, in list order, each given the work dir path and the stage it follows. Typical: read-only plan checks such as a threat modeler.</p>' +
+'<h4>Blocking problem</h4><p>Shown to the user: fix it (e.g. an implement fix round) and re-run the agent, continue anyway, or <a data-node="stop">stop early</a>. Unattended: stop early.</p>' +
+'<p>Same protocol for <a data-node="afterimpl">after_implement</a> and <a data-node="beforeho">before_handoff</a>.</p>' },
+
+impl: { kicker: "Role · implement · step 3", title: "Implementer", chips: ["singularity:implementer", "sonnet · medium", "all tools"], body:
+'<h4>Orchestrator, before it starts</h4><ol><li>Branch from ' + c("conventions.branch") + ' (default ' + c("feature/{ticket}-{slug}") + ').</li><li>' + c("test-guard.sh reset") + ': nothing stays frozen from an earlier run.</li><li>Baseline: ' + c("run-checks.sh --save-failures &lt;work_dir&gt;/.state/baseline-failures") + '. A resumed run with changes keeps its baseline.</li></ol>' +
+'<h4>Per plan step (small: per AC)</h4><ol><li>Test first; see it fail for the right reason. Happy path, boundaries, failure modes; specific assertions; no sleeps, real time or network.</li><li>Freeze: ' + c("test-guard.sh freeze &lt;test file&gt;…") + '</li><li>Smallest change that passes.</li><li>Lint and typecheck changed files; targeted tests (' + c("test_one") + ').</li><li>Remove tests, fixtures, workarounds the step made obsolete.</li><li>Tick ' + c("- [x]") + '; one line per deviation.</li></ol>' +
+'<h4>Rules</h4><ul><li>Read spec and plan once, then only the files a step touches. Full suite once, at the end.</li><li>Plan wrong, or a frozen test wrong → stop and report. A pass bought by changing what a test checks is a failure.</li><li>No commit, push or PR unless ' + c("auto_commit: true") + '. Never ' + c("--no-verify") + ', skipped tests or weakened assertions.</li></ul>' +
+'<h4>Returns</h4><p>Steps completed, tests frozen, test results, findings fixed and not reproduced, deviations, what is left. Then the <a data-node="stopgate">stop gate</a> decides whether it may stop.</p>' },
+
+freezeguard: { kicker: "Hook · PreToolUse Edit|Write|NotebookEdit", title: "Frozen-test guard", chips: ["scripts/test-guard.sh"], body:
+'<p>Blocks an edit to a frozen test (exit 2) and tells the agent to stop and report if the test itself is wrong. Root cause: agents under pressure to get green edit, weaken or delete tests instead of fixing code.</p>' +
+'<table class="kv"><tr><td>' + c("freeze &lt;file&gt;…") + '</td><td>record tests that fail for the right reason</td></tr><tr><td>' + c("pre-edit") + '</td><td>the hook; exit 2 blocks</td></tr><tr><td>' + c("check --base &lt;base&gt; [--plan plan.md]") + '</td><td>frozen tests changed or deleted since freezing; tests at the base changed or deleted without the plan naming them; exit 1</td></tr><tr><td>' + c("reset") + '</td><td>forget all; each implement stage and hand-off</td></tr><tr><td>' + c("is-test &lt;path&gt;…") + '</td><td>print paths that look like tests</td></tr></table>' +
+'<p>Tests: ' + c("checks.test_pattern") + ' or ' + c("test/") + ', ' + c("tests/") + ', ' + c("__tests__/") + ', ' + c("spec/") + ', ' + c("*_test.*") + ', ' + c("*.test.*") + ', ' + c("*.spec.*") + ', ' + c("test_*.py") + ', ' + c("*Test.java") + '. List: ' + c(".state/frozen-tests.txt") + ', never committed. Wrong frozen test: the user decides; ' + c("test-guard.sh reset") + ' unfreezes all.</p>' },
+
+stopgate: { kicker: "Hook · SubagentStop", title: "Stop gate", chips: ["scripts/subagent-stop.sh", "timeout 3600 s"], body:
+'<p>When the implementer (' + c("singularity:implementer") + ' or ' + c("roles.implement.agent") + ') stops, runs ' + c("run-checks.sh --tail 30") + ' with the baseline as ' + c("--known-failures") + '. Exit 1 → hook exits 2; Claude Code feeds stderr back as the next instruction:</p>' +
+'<pre>singularity: you can\'t finish yet: the project\'s checks fail (block 1 of 3).\nFix the cause in the code. Never weaken, skip or delete a test or a check to get green, and never edit a test you froze.\nIf the failure isn\'t caused by your change, or the plan can\'t work, stop and say so in your final answer instead.</pre>' +
+'<ul><li>After ' + c("checks.stop_retries") + ' (3) blocks in a row it lets the agent stop; <a data-node="checks">Checks</a> reports what still fails.</li><li>Counter ' + c(".state/stop-&lt;agent_id&gt;.count") + '. Each block appends ' + c("&lt;time&gt; &lt;agent&gt; &lt;n&gt;/&lt;retries&gt; &lt;failing checks&gt;") + ' to ' + c(".state/stop-gate.log") + '; the run record keeps it, the learn job counts it as a ' + c("stop-gate") + ' defect.</li><li>Off: ' + c("checks.implement_gate: false") + '. Other agents and unconfigured projects pass through.</li></ul>' },
+
+afterimpl: { kicker: "Project stage", title: "stages.after_implement", chips: [], body:
+'<p>Runs after implement and before checks and review, so whatever it changes is reviewed. Example: ' + c("migration-checker") + ' (down migration exists; no lock on a large table).</p><p>Blocking problem: same protocol as <a data-node="afterplan">after_plan</a>.</p>' },
+
+checks: { kicker: "Mechanical · step 4", title: "Checks", chips: ["exit codes decide"], body:
+'<p>Before any reviewer, which costs far more. Pass and fail are exit codes, never a model\'s reading of output.</p>' +
+'<ol><li>' + c("run-checks.sh --json &lt;work dir&gt;/checks.json --known-failures &lt;work_dir&gt;/.state/baseline-failures") + '<br>0 → continue · 1 → output to implement as a <a data-node="fix">fix round</a>, re-run; still failing after 2 rounds → <a data-node="stop">stop early</a> · 3 → no commands: ' + c("summary.md") + ' says nothing mechanical checked the change</li>' +
+'<li>' + c("test-guard.sh check --base &lt;base&gt; --plan &lt;plan&gt;") + ' (no ' + c("--plan") + ' for small). Each printed line → a <b>blocking</b> finding from the ' + c("test-guard") + ' reviewer, challenged in step 5.</li>' +
+'<li>' + c("change-diff.sh &lt;base&gt; &gt; change.diff") + ' and ' + c("--stat &gt; change.stat") + '. ' + c("git diff") + ' alone omits untracked new files.</li></ol>' +
+'<p><b>Base</b>: merge base of the branch with ' + c("conventions.default_branch") + '.</p>' +
+'<h4>run-checks.sh</h4><p>Runs ' + c("checks.run") + ' (default ' + c("[build, lint, typecheck, test]") + '), skipping unset or ' + c("TODO") + ', then ' + c(".claude/singularity/hooks/verify.sh") + ' if executable. Project root, ' + c("CI=true") + ', no input. Success prints one line; a failure prints command, exit status and the last 40 lines. Baseline failures are run and reported but don\'t fail.</p>' },
+
+review: { kicker: "Role · review · step 5", title: "Review", chips: ["singularity:reviewer", "fable · high", "advisory: sonnet · high", "read-only"], body:
+'<h4>Lenses</h4><table class="kv">' +
+'<tr><td><b>correctness</b> · blocks</td><td>every AC met; logic, edge cases, error handling, concurrency, data integrity; tests that fail without the change</td></tr>' +
+'<tr><td><b>security</b> · blocks</td><td>injection, authn/authz, secrets, unsafe deserialization, SSRF, path traversal, dependency risk, sensitive data in logs</td></tr>' +
+'<tr><td><b>maintainability</b> · advises</td><td>existing patterns, naming, duplication, dead code, complexity</td></tr>' +
+'<tr><td><b>testability</b> · advises</td><td>hardcoded values, non-injectable dependencies, non-deterministic tests, broad assertions, obsolete tests, missing boundary/failure tests, contracts without a contract test</td></tr>' +
+'<tr><td>' + c("review.extra_lenses") + '</td><td>name + description; advisory unless in ' + c("review.blocking_lenses") + '</td></tr>' +
+'<tr><td>' + c("review.extra_reviewers") + '</td><td>project agents, own model; always can block</td></tr></table>' +
+'<p>Advisory: at most ' + c("should-fix") + ', on ' + c("review.advisory") + ', never challenged. Small: correctness (+ security near the risk list). Large: correctness twice, the second adding <i>Review the files in the reverse order of change.stat.</i></p>' +
+'<h4>1 · Task A per lens, one batch</h4><pre>Task A: review through the "&lt;lens&gt;" lens (&lt;description&gt;). Base: &lt;base&gt;. The whole change, new files included, is in &lt;work dir&gt;/change.diff (summary in change.stat). The spec is at &lt;spec path&gt;.</pre>' +
+'<p>Advisory lenses add <i>This lens is advisory: report at most should-fix.</i> Findings: severity (' + c("blocking") + ' | ' + c("should-fix") + ' | ' + c("nit") + '), ' + c("file:line") + ', problem, evidence, fix, and the guideline id it breaks, if one covers it (' + c("cites") + '). A failed or silent reviewer is re-run: a missing lens is not a clean review.</p>' +
+'<h4>2 · Task B per blocking finding</h4><pre>Task B: challenge this finding from the "&lt;lens or reviewer&gt;" reviewer. Base: &lt;base&gt;. The whole change is in &lt;work dir&gt;/change.diff.</pre>' +
+'<p>The challenger tries to disprove it. Counts only if confirmed, at the challenger\'s severity; ' + c("uncertain") + ' is allowed. ' + c("test-guard") + ' findings are confirmed unless the spec requires the test change. Challenger fails twice → claimed severity, marked <b>unverified</b>.</p>' +
+'<h4>review.md</h4><p>Confirmed + unverified (deduplicated, by severity) → advisory → rejected with reason.</p>' +
+'<h4>Blocking findings</h4><p><a data-node="fix">Fix round</a> → step 4 → re-review and re-challenge only the lenses and reviewers that blocked. ≤ 2 rounds, then <a data-node="stop">stop early</a>.</p>' },
+
+fix: { kicker: "Role · implement · fix round", title: "Fix round", chips: ["effort: high", "unless roles.implement.effort"], body:
+'<table class="kv"><tr><td>checks failed (step 4)</td><td>failure output; ≤ 2 rounds</td></tr><tr><td>blocking findings (step 5)</td><td>only those findings; ≤ 2 rounds</td></tr><tr><td>verification FAIL (step 6)</td><td>the failures; 1 round</td></tr><tr><td>project stage blocker</td><td>if the user chooses fix</td></tr></table>' +
+'<h4>Per blocking finding</h4><ol><li>Write a test that fails because of it; freeze it.</li><li>Fix the code.</li><li>No test can show it (a secret in a log) → fix directly, say why.</li><li>A test should show it but won\'t fail → no code change; report <b>not reproduced</b> with what was tried → recorded as rejected, by a test.</li></ol>' +
+'<p>Every round returns to <a data-node="checks">step 4</a>. Root cause for high effort: re-running a failure higher costs less than raising every first attempt.</p>' },
+
+verify: { kicker: "Role · verify · step 6", title: "Verifier", chips: ["singularity:verifier", "sonnet · medium", "edits nothing"], body:
+'<ol><li>Install if needed; ' + c("run-checks.sh --json &lt;work dir&gt;/verify-checks.json --tail 60") + ', plus ' + c("--known-failures") + ' if the baseline exists. Pass/fail from exit codes only: agents that judge output report false successes.</li><li>Map each AC to its test; confirm it ran and passed.</li><li>' + c("test-guard.sh check --base &lt;base&gt; --plan &lt;plan&gt;") + ' (base from ' + c("run.json") + '); report each line.</li></ol>' +
+'<h4>Output</h4><ul><li>Table: check | command | pass/fail (exit code) | evidence</li><li><b>Test Coverage and Verification Summary</b>: per AC or defect, the tests for happy path, boundaries and failure modes: pass / fail / <b>missing</b>. It goes first in ' + c("summary.md") + '.</li><li>' + c("PASS") + ' or ' + c("FAIL") + '. Coverage gaps alone don\'t fail; they are listed.</li></ul>' +
+'<p>FAIL → one <a data-node="fix">fix round</a> → step 4 → verify again → still failing → <a data-node="stop">stop early</a>.</p>' },
+
+beforeho: { kicker: "Project stage", title: "stages.before_handoff", chips: [], body:
+'<p>Runs after review and verification, so its changes go unreviewed: keep it to notes and documents (a release-notes writer) or make it read-only.</p><p>Blocking problem: same protocol as <a data-node="afterplan">after_plan</a>.</p>' },
+
+handoff: { kicker: "Orchestrator · step 7", title: "Hand-off", chips: ["summary.md"], body:
+'<ol><li>' + c("summary.md") + ': Verification Summary first, what changed, evidence, open non-blocking findings, follow-ups, baseline failures, migration note.</li><li>Run <a data-node="learn">learn</a> <b>before</b> committing: guideline, record and eval-case changes ship in the same commit and PR/MR as the code.</li><li>Keep the change as handed off: ' + c("outcomes.sh snapshot &lt;slug&gt; --base &lt;base&gt;") + ' → local ref ' + c("refs/singularity/handoff/&lt;slug&gt;") + ' (index and working tree untouched; pruned after 180 days), recorded in ' + c("run.json") + '.</li><li>Remove the ' + c("active-run") + ' lock and ' + c("baseline-failures") + '; ' + c("test-guard.sh reset") + '.</li><li>Commit only if ' + c("conventions.auto_commit") + ', in the project\'s convention, each message ending with the trailer ' + c("Singularity-Run: &lt;slug&gt;") + '; not committing, ' + c("summary.md") + ' asks you to keep it.</li><li>Draft PR/MR (' + c("open_change") + ', then ' + c("link") + ') only if ' + c("conventions.auto_pr") + ' or asked → ' + c("move(in_review)") + ', comment the link, record it in ' + c("run.json") + '.</li><li>Files tracker, no PR/MR: ' + c("move(in_review)") + ', comment the ' + c("summary.md") + ' path (and commit); ask whether to ' + c("move(done)") + '. Unattended: leave in review.</li></ol>' },
+
+stop: { kicker: "Exit path", title: "Stopping early", chips: ["tracker: blocked"], body:
+'<h4>Triggers</h4><ul><li>checks still fail after 2 fix rounds</li><li>blocking findings remain after 2 review rounds</li><li>verification fails after its fix round</li><li>a project stage blocks and the user, or an unattended run, stops</li></ul>' +
+'<h4>Actions</h4><ol><li>' + c("move(ticket, blocked)") + ': task files always; Jira/GitHub/GitLab only if ' + c("tracker.states") + ' maps ' + c("blocked") + '.</li><li>' + c("comment") + ' with the reason and the work dir path.</li><li>Run <a data-node="learn">learn</a>, so the stop and its reason reach the record.</li><li>Remove the lock and ' + c("baseline-failures") + '; ' + c("test-guard.sh reset") + '; report.</li></ol>' +
+'<p>Fix the cause, then run the same command to <a data-scn="resume">resume</a>.</p>' },
+
+learn: { kicker: "Role · optimize · step 8", title: "Learn step", chips: ["singularity:optimizer", "job: learn", "opus · high"], body:
+'<p>Skipped if ' + c("learning.enabled: false") + '. One spawn of the optimize role, job ' + c("learn") + ', with:</p><ul><li>the work dir and ' + c("run.json") + ' (pre-0.4.0 runs: rebuilt from the drafts, ' + c("review.md") + ' and ' + c("summary.md") + ')</li><li>the corrections queue (' + c("corrections.sh count") + '; the job lists and clears it)</li><li>finished human reviews and people\'s edits before merge, if ' + c("learning.pr_reviews: true") + '</li></ul><p>The job also checks later fixes and reverts of earlier runs (' + c("outcomes.sh later-fixes") + '), after ' + c("git fetch --quiet origin &lt;default&gt;") + ' if the remote exists.</p>' +
+'<p>Guidelines change only for a defect whose root cause is a weak guideline, a user correction, or code this run changed. The orchestrator then reports each guideline added, changed or removed with the defect or correction behind it, plus proposed checks. All of it is in the change\'s diff.</p>' +
+'<p><a data-node="l_job">Inside the learn job ↓</a></p>' },
+
+optcheck: { kicker: "Orchestrator · step 9", title: "Optimization check", chips: ["optimization.every_runs"], body:
+'<p>Skipped if ' + c("optimization.every_runs: 0") + '. Due when:</p><table class="kv"><tr><td>onboarding</td><td>no ' + c("O-…-onboard") + ' entry in ' + c("optimizations.md") + '</td></tr><tr><td>confirm goals</td><td>' + c("goals.md") + ' lacks ' + c("Status: confirmed") + '</td></tr><tr><td>optimization</td><td>≥ ' + c("every_runs") + ' (10) ' + c("\"type\":\"run\"") + ' lines after the last ' + c("optimizations.md") + ' entry</td></tr><tr><td>file upstream reports</td><td>' + c("draft") + ' reports on the default branch (merged = approved)</td></tr></table>' +
+'<p>Attended: offer to start; spawn optimize with ' + c("onboard") + ', ' + c("confirm goals") + ', ' + c("optimize") + ' or ' + c("file upstream reports") + '; relay each <b>Decision needed</b> block and restart the role with the answer until it is done. Unattended: report only.</p><p>Final report: result, verification, open findings, guidelines changed, PR/MR link.</p>' },
+
+ob_init: { kicker: "Command", title: "/singularity:init-project", chips: ["skills/init-project/SKILL.md"], body:
+'<p>Never overwrites: shows what it would add and merges on approval.</p><ol>' +
+'<li>' + c(".claude/singularity.md") + ': real ' + c("commands") + ' (each run once, failures marked); ' + c("conventions") + ' from ' + c("git log") + ' / ' + c("git branch -a") + '; ' + c("code_host") + ' from ' + c("git remote -v") + '; ' + c("tracker") + ' detected, confirmed with the user. ' + c("roles") + ', ' + c("review") + ', ' + c("stages") + ' empty; unknowns ' + c("TODO") + '.</li>' +
+'<li>Jira: Atlassian MCP server into ' + c(".mcp.json") + '; each person runs ' + c("/mcp") + ' once.</li>' +
+'<li>Files tracker: task folder, git-ignored, ' + c("tasks.sh validate") + '.</li>' +
+'<li>' + c(".claude/settings.json") + ': ' + c("extraKnownMarketplaces") + ', ' + c("enabledPlugins") + ', ' + c("ref: stable") + '; offers ' + c("\"autoMemoryEnabled\": false") + '.</li>' +
+'<li>' + c("CLAUDE.md") + ' with the two ' + c("@") + ' imports.</li>' +
+'<li>Copies ' + c("goals.md") + ', ' + c("guidelines/") + ', ' + c("experience/") + ', ' + c("evals/") + ', ' + c("upstream/") + '.</li>' +
+'<li>Optional: hook scripts, example agents, example workflow.</li>' +
+'<li>' + c("work_dir") + ' into ' + c(".gitignore") + '.</li>' +
+'<li>Spawns optimize: ' + c("onboard, started by init-project") + '; relays Decision needed blocks.</li>' +
+'<li>Git-ignore check: ' + c("git check-ignore -- &lt;shared paths&gt;") + '; all of ' + c(".claude/") + ' ignored → append ' + c("templates/project/gitignore-claude.txt") + '; else ' + c("!/&lt;path&gt;") + ' per path; ' + c("work_dir") + ', task folder and ' + c("settings.local.json") + ' must stay ignored.</li></ol>' +
+'<p>Teammates: ' + c("claude plugin install singularity@singularity --scope project") + '.</p>' },
+
+ob_survey: { kicker: "Optimizer · onboard step 1", title: "Survey (read-only)", chips: ["optimizer/onboard.md"], body:
+'<table class="kv"><tr><td>Value</td><td>users, what they rely on, goals now, trade-offs, constraints: README, roadmap, open epics, release notes</td></tr><tr><td>Purpose · Architecture</td><td>components, where business logic lives, stores, services, generated/vendored code</td></tr><tr><td>Build and test</td><td>real commands, one-test command, fixtures, services, slow or flaky suites, CI</td></tr><tr><td>Conventions</td><td>where they differ from the shared standards</td></tr><tr><td>Risk map</td><td>where a defect costs most; domain rules a reviewer needs</td></tr><tr><td>What the team corrects</td><td>' + c("list_changes(merged, 20)") + ' + ' + c("review_comments") + '; fix and revert commits</td></tr></table>' +
+'<ul><li>Only what the repository shows, with paths; the rest becomes open questions.</li><li>Large repository: one Explore subagent per question, in parallel.</li><li>Findings → ' + c("onboarding.md") + ' in the run dir. Own worktree on ' + c("singularity/onboard-&lt;date&gt;") + ', or the user\'s checkout when init-project starts it.</li></ul>' },
+
+ob_context: { kicker: "Optimizer · onboard steps 2–4", title: "Write context, fit the setup", chips: ["tier 1", "tier 2 canaries"], body:
+'<ul><li><b>Goals first</b>: draft ' + c("goals.md") + ' (≤ ~40 lines, ' + c("Status: draft") + '), every statement cited; gaps stay ' + c("TODO") + '. Confirmed goals are never redrafted.</li><li>Write only what agents can\'t find quickly or would get wrong: exact commands, non-obvious conventions, domain rules, risks, what not to touch. No overviews: LLM-written context files lowered task success and cost ~20% more.</li></ul>' +
+'<table class="kv"><tr><td>CLAUDE.md project sections (&lt; ~60 lines)</td><td>purpose, non-obvious architecture, convention differences</td></tr><tr><td>' + c("guidelines/project.md") + ' (≤ 40)</td><td>what every role needs anywhere</td></tr><tr><td>' + c(".claude/rules/singularity/&lt;area&gt;.md") + '</td><td>one part of the code, with ' + c("paths") + '</td></tr><tr><td>role files</td><td>spec: requirement sources · plan: boundaries, migrations · implement: one test, fixtures, codegen · review: risk map · verify: slow/flaky checks</td></tr><tr><td>"Do not touch"</td><td>generated code, vendored libraries, released migrations</td></tr></table>' +
+'<ul><li><b>Fit the setup</b>: fix ' + c("commands") + ' (tier 1, ' + c("test_one") + ' on a real file); lenses, extra reviewers, stages, role overrides, hooks → tier-2 canaries, checked after 10 runs.</li><li><b>Baseline eval cases</b>: up to 10 from merged PRs where a human caught a real defect; every 5th holdout.</li><li>Curation line: ' + c("{\"type\":\"curation\",…,\"ref\":\"O-&lt;date&gt;-onboard\"}") + '.</li></ul>' },
+
+ob_gate: { kicker: "Human gate · onboard steps 5–6", title: "Confirm goals, choose proposals", chips: ["Decision needed"], body:
+'<ol><li>' + c("check-guidelines.sh") + ' first; fix findings.</li><li>Show: draft goals, context written, open questions, tier-2 proposals (id, change, why, metric, check after), eval-case offer.</li><li>User confirms → ' + c("Status: confirmed &lt;date&gt;") + '. From then on the optimizer only proposes goal changes (tier 3).</li></ol>' +
+'<ul><li>As a subagent it returns a <b>Decision needed</b> block with the exact restart request; init-project relays it.</li><li>Unattended: tier-1 context and commands only; goals stay ' + c("draft") + ' for the next attended run.</li><li>Archive: ' + c("O-&lt;date&gt;-onboard · Onboard the agents · tier 1 · adopted") + ' + one ' + c("canary") + ' entry per applied proposal.</li><li>From init-project: changes left uncommitted for the team\'s setup commit; otherwise a draft PR/MR.</li></ul>' },
+
+sig_run: { kicker: "Signal", title: "Run record", chips: ["run.json", "review.md", "*.draft.md", ".state/stop-gate.log"], body:
+'<table class="kv"><tr><td>confirmed review finding</td><td>spec, plan or implement at fault</td></tr><tr><td>rejected finding</td><td>the reviewer at fault (false positive)</td></tr><tr><td>failed checks, stop-gate blocks</td><td>' + c("source: checks") + ', ' + c("source: stop-gate") + ' (the implementer stopped while checks failed; from ' + c(".state/stop-gate.log") + ')</td></tr><tr><td>verification failure, fix rounds</td><td>' + c("source: verify") + '</td></tr><tr><td>gate edit</td><td>' + c("spec.draft.md") + ' vs ' + c("spec.md") + ', ' + c("plan.draft.md") + ' vs ' + c("plan.md") + ': a user correction</td></tr><tr><td>this run fixes an earlier one</td><td>a defect run whose spec names code an earlier run changed (' + c("Singularity-Run") + ' trailer, branch, or PR/MR in ' + c("git log") + ') → ' + c("fixes: &lt;slug&gt;") + ', defect ' + c("source: later-fix") + ', acted on now</td></tr></table>' +
+'<h4>Citations</h4><p>Each finding\'s ' + c("cites") + ' (the guideline the reviewer says it breaks) and ' + c("applied") + ' per role (the ids the planner and implementer report deciding a choice) point the root cause at a guideline. They never add one.</p>' },
+
+sig_corr: { kicker: "Signal · hooks", title: "Corrections queue", chips: ["scripts/corrections.sh", "<work_dir>/corrections/"], body:
+'<table class="kv"><tr><td>Stop, StopFailure → ' + c("remember") + '</td><td>marks the turn ended (its ' + c("prompt_id") + '); Stop also keeps the agent\'s last message</td></tr><tr><td>UserPromptSubmit → ' + c("capture") + '</td><td>cuts pasted content, notifications and other agents\' messages, then queues the prompt with a trigger (below)</td></tr><tr><td>SessionStart</td><td>"n user correction(s) are waiting…"</td></tr></table>' +
+'<h4>Triggers</h4><table class="kv"><tr><td>' + c("phrase") + '</td><td>starts with ' + c("correction:") + ' or ' + c("defect:") + ', or, once the agent has answered in the session, matches ' + c("scripts/correction-patterns.txt") + ' or ' + c(".claude/singularity/correction-patterns.txt") + ' (ERE, case-insensitive); a session\'s first prompt sets the task</td></tr><tr><td>' + c("interrupt") + '</td><td>the previous prompt\'s turn never reached Stop (you pressed Esc), and you typed this</td></tr><tr><td>' + c("rejection") + '</td><td>you rejected a tool call and typed what to do instead, or typed your next prompt after rejecting it; the record holds the rejected call</td></tr></table>' +
+'<ul><li>Rejections are read from the session transcript, from where the hooks last stopped. Claude Code doesn\'t document its format: best effort; nothing is queued if it changes.</li><li>"continue", "yes" and the like are never queued.</li><li>One file per record: trigger, prompt or feedback, rejected call, last agent message, session, time. The queue has its own ' + c(".gitignore") + ': prompts can hold secrets.</li><li>Wide net: the learn job drops non-corrections; a rephrased request after an interrupt is implicit and acts only on recurrence.</li><li>Captures only when ' + c(".claude/singularity.md") + ' exists and neither ' + c("learning.enabled") + ' nor ' + c("learning.corrections") + ' is false.</li><li>Learned at the next run\'s step 8, or now: ' + c("@agent-singularity:optimizer learn from corrections") + '.</li></ul>' },
+
+sig_later: { kicker: "Signal · every learn job", title: "Later fixes and reverts", chips: ["scripts/outcomes.sh later-fixes", "learning.later_fixes"], body:
+'<ol><li>First-parent commits on the default branch (' + c("origin/&lt;default&gt;") + ' if present) from the last 90 days whose message reads like a fix or a revert.</li><li>' + c("git blame -w -M -C") + ' of the lines each changes, at its parent. A line belongs to a run through the ' + c("Singularity-Run: &lt;slug&gt;") + ' trailer, the run\'s squash commit or merge (' + c("change") + ' or ' + c("branch") + ' in its run line), or, on the machine that ran it, its hand-off snapshot ' + c("refs/singularity/handoff/&lt;slug&gt;") + '.</li><li>Leaves out lines older than 90 days at the fix, a run\'s own commits, and commits a ' + c("later_fix") + ' line records.</li></ol>' +
+'<pre>&lt;revert|fix&gt;  &lt;commit&gt;  &lt;date&gt;  &lt;run slug&gt;  &lt;landed&gt;  &lt;lines&gt;  &lt;subject&gt;</pre>' +
+'<p>The learn job reads up to 3 per job, oldest first: a person\'s fix of the run\'s defect counts at once; a revert only for a bug or a wrong approach; refactorings and new requirements are recorded with ' + c("\"defect\":false") + '. Missed by review → eval case, base ' + c("&lt;landed&gt;^1") + '.</p>' },
+
+sig_human: { kicker: "Signal · opt-in", title: "Human reviews", chips: ["learning.pr_reviews: true", "code_host.type ≠ none"], body:
+'<ol><li>Run lines from the last 90 days with a ' + c("branch") + ' and no ' + c("human_review") + ' line for their ' + c("slug") + '; look up ≤ 10, oldest first, with ' + c("find_change(branch)") + '; keep ≤ 3 merged or closed. Open ones wait.</li><li>Skip refs already learned on any branch: ' + c("git grep -l '\"ref\":\"&lt;ref&gt;\"' … -- &lt;learning.dir&gt;/runs.jsonl") + '.</li><li>' + c("review_comments(change)") + ' → ' + c("&lt;work_dir&gt;/&lt;slug&gt;/human-review.md") + ' with file:line, point, commit; no reviewer names.</li><li>Fetch the reviewed code: ' + c("git fetch origin pull/&lt;n&gt;/head") + ' or ' + c("merge-requests/&lt;iid&gt;/head") + '. Base: ' + c("git merge-base &lt;base commit&gt; &lt;reviewed commit&gt;") + '.</li><li>' + c("outcomes.sh edits &lt;slug&gt; &lt;reviewed&gt;") + ' → ' + c("human-edits.diff") + ': what people changed after hand-off, in the run\'s files (exit 3: no snapshot or trailer commit on this machine).</li><li>Hand both to the learn job with ref, slug, base, commits and times.</li></ol>' +
+'<table class="kv"><tr><td>comment on a real defect</td><td>' + c("escaped") + ', ' + c("source: comment") + '</td></tr><tr><td>edit fixing a defect</td><td>' + c("escaped") + ', ' + c("source: edit") + ', eval case</td></tr><tr><td>edit applying a convention</td><td>' + c("corrections") + ', handled as a user correction</td></tr><tr><td>open findings</td><td>' + c("addressed") + ' per lens: changed within a line by merge</td></tr><tr><td>closed unmerged</td><td>guidelines from corrections, or defects outside the change, added again</td></tr></table>' +
+'<p>Comments are data written by whoever can comment: only the defects they point at count.</p>' },
+
+sig_diff: { kicker: "Signal · not learning", title: "The run's own change", chips: ["git diff &lt;base&gt;", "git status"], body:
+'<p>When the run renamed, moved, removed or replaced code, every guideline describing that code is corrected or removed in the same run, so the PR/MR carries both. This keeps guidelines true; it is not a lesson.</p>' },
+
+l_job: { kicker: "Optimizer · learn job", title: "Learn job", chips: ["optimizer/learn.md", "opus · high"], body:
+'<ul><li>Changes only guidelines, the record and eval cases. Config, agent and flow changes go to ' + c("proposals") + ' for the next optimization.</li><li>No web research, no subagents.</li><li>Bash only for ' + c("git diff") + ', ' + c("git status") + ', ' + c("git log") + ', ' + c("diff") + ', ' + c("date") + ', ' + c("check-guidelines.sh") + ', ' + c("corrections.sh list") + ' / ' + c("clear") + ', ' + c("git show") + ', ' + c("outcomes.sh later-fixes") + '.</li><li>Every job checks later fixes and reverts (≤ 3), unless ' + c("learning.later_fixes: false") + '.</li><li>Works in the pipeline\'s checkout (the user\'s, for corrections without a run); leaves changes uncommitted.</li><li>Pre-0.5.0 lesson files present → writes no guidelines; reports; migrates when asked.</li></ul>' +
+'<h4>Returns</h4><p>Per file, guidelines added / changed / removed with ids; guideline-check result; each defect and correction with cause and action; queue records dropped by trigger; later fixes analysed and left; human edits by kind; pending and newly confirmed entries; eval cases; proposed checks; ' + c("stopped") + ' / ' + c("fixes") + '; upstream candidates.</p>' },
+
+l_cause: { kicker: "Learn · root cause first", title: "Root cause", chips: [], body:
+'<ol><li><b>What went wrong</b>: expected vs actual, the role at fault (' + c("spec") + ' ' + c("plan") + ' ' + c("implement") + ' ' + c("review") + ' ' + c("verify") + ', or ' + c("main") + ' outside the pipeline), the file.</li><li><b>What the role had to go on</b>: CLAUDE.md, ' + c("project.md") + ', its role file, rules whose ' + c("paths") + ' match, the standards.</li><li><b>Cause</b>:</li></ol>' +
+'<table class="kv"><tr><td>' + c("guideline-missing") + '</td><td>add in the narrowest home the role reads: rule → role file → ' + c("project.md") + '</td></tr><tr><td>' + c("guideline-wrong") + '</td><td>correct or remove</td></tr><tr><td>' + c("guideline-unclear") + '</td><td>rewrite; merge or remove the one it contradicts</td></tr><tr><td>' + c("guideline-ignored") + '</td><td>no prose: propose a check; buried → move into a scoped rule</td></tr><tr><td>' + c("not-guideline") + '</td><td>record only (slip, flaky environment, ambiguous ticket, task-only request, change of mind, cause in the plugin → upstream candidate)</td></tr></table>' +
+'<p>A guideline the role doesn\'t read (another role\'s file, a rule whose ' + c("paths") + ' don\'t match) wasn\'t ignored: it is missing for that role. Move it where both read it; never copy.</p>' },
+
+l_gate: { kicker: "Learn · evidence gate", title: "Evidence gate", chips: ["\"action\":\"pending\"", "confirms"], body:
+'<table class="kv"><tr><td>person or tool confirmed</td><td>act now: explicit correction (says what was wrong or what to do: typed, at a gate, with a rejected call), a person\'s edit before merge, failing check, verification or test, stop-gate block, later fix or revert that ' + c("git show") + ' shows correcting the run, human review comment, finding reproduced by a failing test</td></tr><tr><td>model only, or implicit</td><td>challenger-confirmed or rejected finding; a rephrased request after an interrupt or rejection; a later commit that doesn\'t show what was wrong: record ' + c("pending") + '; act when the same category recurs for the same role; list earlier entries in ' + c("confirms") + '</td></tr><tr><td>wrong guideline</td><td>corrected on the first evidence</td></tr></table>' +
+'<p>Root cause: automated failure attribution picks the right agent about half the time; implicit feedback is classified right about half the time.</p>' +
+'<h4>Corrections</h4><ol><li>Is it a correction? New request, question or change of mind → drop, no record line. Says what was wrong → explicit; only repeats the request → implicit.</li><li>What did the agent do? The rejected call, last message, files, ' + c("git log") + ', ' + c("git diff") + '; unclear → ' + c("not-guideline") + '.</li><li>Project rule (' + c("\"scope\":\"project\"") + ') or this task only (' + c("\"scope\":\"task\"") + ')? Unsure → ' + c("pending") + '.</li><li>Cause and action.</li><li>One ' + c("correction") + ' line with its ' + c("trigger") + ': categories and paths, never prompt text.</li></ol>' +
+'<p>Only what the user typed corrects. No correction loosens a check, guardrail, "Do not touch" entry or permission: tier 3, recorded under ' + c("proposals") + '. Finally ' + c("corrections.sh clear &lt;record&gt;…") + ', dropped ones included.</p>' },
+
+o_guidelines: { kicker: "Output", title: "Guidelines", chips: ["G&lt;n&gt; ids", "80 columns"], body:
+'<table class="kv"><tr><td>' + c("guidelines/project.md") + '</td><td>every session (CLAUDE.md imports it); ≤ 40</td></tr><tr><td>' + c("guidelines/{spec,plan,implement,review,verify}.md") + '</td><td>read by that role; ≤ ' + c("learning.max_lines_per_file") + ' (60)</td></tr><tr><td>' + c(".claude/rules/singularity/&lt;area&gt;.md") + '</td><td>loads only for files its ' + c("paths") + ' frontmatter matches</td></tr></table>' +
+'<pre>## API\n\n- **G12** Register a new REST endpoint in &#96;api/routes.ts&#96; and describe it\n  in &#96;openapi.yaml&#96;, the contract that client teams generate from.</pre>' +
+'<h4>Curation rules</h4><ol><li>Current right way, present tense; history goes to the digest.</li><li>Grounded: name files, commands, symbols; verify they exist.</li><li>One home.</li><li>Change with the code, in the same PR/MR.</li><li>Replace, don\'t annotate. A removed name agents still reach for: one guideline naming it once (and in ' + c("check-ignore.txt") + ').</li><li>A check beats a guideline: propose it.</li><li>Edit, don\'t rewrite files.</li><li>Stay within limits; full → merge, generalize, move to rules, list under ' + c("full") + '.</li><li>Wrap at 80 columns, 2-space continuation, never inside a code span or URL.</li><li>Never record secrets, personal or customer data, or blame.</li></ol>' +
+'<p>Ids: next above the highest in guideline files, rules and ' + c("runs.jsonl") + '; never reused. Before finishing, ' + c("check-guidelines.sh") + ': missing paths, rules with no or unmatched ' + c("paths") + ', duplicate ids, lesson-log wording.</p>' },
+
+o_check: { kicker: "Output", title: "Proposed check", chips: ["proposed_checks"], body:
+'<p>For ' + c("guideline-ignored") + ', and whenever a lint rule, type, test, hook or config setting could enforce a guideline. The learn job records it in the digest\'s ' + c("proposed_checks") + '; an optimization implements it (new ' + c("verify.sh") + ' / ' + c("post-edit.sh") + ' checks are tier 2), and the change that adds the check removes the guideline.</p><p>A guideline whose category keeps recurring, or keeps being ignored, is replaced by a check rather than reworded again.</p>' },
+
+o_record: { kicker: "Output · the record", title: "runs.jsonl", chips: ["learning.dir", "never read by working agents"], body:
+'<table class="kv"><tr><td>' + c("\"type\":\"run\"") + '</td><td>date, ticket, slug, pipeline, plugin_version, branch, change, kind, goal, lead_s, active_s, fix_rounds, models, stages{s, tokens}, gate_edits, gate_edit_kinds, gate_wait_s, review_rounds, verify_first_pass, applied{role: ids}, findings[], defects[] (source checks | stop-gate | verify | later-fix), guidelines{changed, removed}, proposed_checks, full, proposals; stopped / resumed / fixes</td></tr><tr><td>' + c("\"type\":\"correction\"") + '</td><td>date, session, trigger, slug?, role, category, path, scope, cause, action, guideline</td></tr><tr><td>' + c("\"type\":\"later_fix\"") + '</td><td>date, ref (12-char commit), kind (fix | revert), slug, defect, defects[], guidelines</td></tr><tr><td>' + c("\"type\":\"human_review\"") + '</td><td>date, ref, slug, outcome, review_s, unmodified, escaped[] (source comment | edit), corrections[], addressed{lens: [addressed, open]}, guidelines</td></tr><tr><td>' + c("\"type\":\"curation\"") + '</td><td>date, by, ref (' + c("O-…") + '), guidelines</td></tr></table>' +
+'<ul><li>Each finding/defect: category (reuse existing names), stage or role, path, cause, action (' + c("added") + ' ' + c("changed") + ' ' + c("removed") + ' ' + c("moved") + ' ' + c("check-proposed") + ' ' + c("pending") + ' ' + c("recorded") + '), ' + c("guideline") + ', ' + c("covered_by") + ', ' + c("cites") + ', ' + c("confirms") + '.</li><li>Leave out what the run record lacks; never estimate times or invent numbers. Never prompt text.</li></ul>' },
+
+o_eval: { kicker: "Output", title: "Regression eval case", chips: [".claude/singularity/evals/&lt;id&gt;/"], body:
+'<p>Every real defect that got past the review: a later fix or revert, a human review comment, a person\'s edit fixing a defect, a correction about code the review passed. Only when the reviewed change can be rebuilt (later fix: base ' + c("&lt;landed&gt;^1") + ', reviewed ' + c("&lt;landed&gt;") + ').</p><ul><li>' + c("change.patch") + ': ' + c("git diff &lt;base&gt; &lt;reviewed-commit&gt;") + ', before the fix.</li><li>' + c("case.md") + ' frontmatter: ' + c("kind") + ' (' + c("recall") + ' must be found · ' + c("precision") + ' known false positive), ' + c("lens") + ', ' + c("base") + ', ' + c("expect") + ', ' + c("location") + ', ' + c("holdout") + ', ' + c("source") + '.</li><li>Every 5th case ' + c("holdout: true") + '. Rejected findings may become precision cases.</li><li>Never edit or delete a case; no duplicate for a ' + c("source") + ' already covered.</li></ul>' },
+
+o_upcand: { kicker: "Output", title: "Upstream candidates", chips: ["experience/upstream.md"], body:
+'<p>A guideline that would be right in any project, or a defect or correction whose cause is in the shared plugin, with evidence (counts and refs). An optimization turns candidates with evidence from at least two runs into <a data-node="up_report">upstream reports</a>.</p>' },
+
+op_evidence: { kicker: "Optimize · steps 0–1", title: "Evidence", chips: ["workflows/optimize-scan.js", "fable · xhigh"], body:
+'<ul><li>Settings: ' + c("every_runs") + ' 10, ' + c("web_scan") + ' true, ' + c("max_eval_cost_usd") + ' 10.</li><li>Run dir ' + c("&lt;work_dir&gt;/optimizer-&lt;date&gt;/") + '; branch ' + c("singularity/optimize-&lt;date&gt;") + ' in ' + c("&lt;run dir&gt;/worktree") + ' from the default branch.</li><li>As the session: run ' + c("singularity:optimize-scan") + ' with ' + c("{ sources, focus, webScan, today, pluginRoot }") + '. As a subagent: spawn one read-only subagent per stream itself.</li></ul>' +
+'<table class="kv"><tr><td>streams</td><td>' + c("metrics") + ' · ' + c("failures") + ' · ' + c("value") + ' · ' + c("corrections") + ' · ' + c("guidelines") + ' · ' + c("context") + ' · ' + c("contracts") + ' · ' + c("evals") + ' (sonnet · low) · ' + c("practice") + ' (web; off with ' + c("web_scan: false") + ')</td></tr><tr><td>output</td><td>' + c("evidence.json") + ' + ' + c("evidence.md") + ': health dashboard of quality (incl. stop-gate blocks, changes merged unedited, later fixes and reverts, findings addressed per lens), flow and value with trends; each guideline\'s lifecycle (applied, cited, ignored, misled, last change to its files); failed streams named, never guessed</td></tr></table>' +
+'<p>Lesson files from before 0.5.0 found → migrate first, then gather again.</p>' },
+
+op_propose: { kicker: "Optimize · step 2", title: "Propose", chips: ["proposals.md", "≤ 5"], body:
+'<ul><li>Due contracts: keep, extend or revert, with numbers.</li><li>≤ 5 project changes ranked by harm to the goals × frequency: escaped defects &gt; corrections &gt; blocking findings &gt; rework &gt; waiting &gt; gate edits &gt; tokens and time.</li><li>Each: ' + c("O-&lt;date&gt;-&lt;n&gt;") + ', title, tier, goal; contract (hypothesis, change, targets, metric and size of effect, counter-metric, validation, check-after); diff sketch; validation plan with cost.</li><li>Preference: config → checks/hooks/tools → facts and eval cases → targeted agent addition → prose.</li><li>Audits: stale guidelines → tier-1 refresh; enforceable guideline → check; recurring failure → check, not rewording; work failed under it → correct; always-loaded and unused for 90 days → path-scoped rule (never removed for disuse alone); recurring weak tests → mutation check in ' + c("verify.sh") + '; lens people rarely act on → narrower or advisory. No new guideline without a defect or correction behind it.</li><li>Plugin causes → upstream report drafts. Goals out of date → tier-3 recommendation. End with "considered and rejected".</li></ul>' },
+
+op_challenge: { kicker: "Optimize · step 3", title: "Challenge (Task C)", chips: ["singularity:reviewer"], body:
+'<p>One reviewer per tier-2 proposal and per upstream report, with the evidence it cites. It tries to refute it:</p><ul><li>Evidence real and representative, or a few runs?</li><li>Overfits the cited cases?</li><li>Moves the metric by gaming it (fewer findings, weaker checks, skipped steps)?</li><li>Reduces oversight or touches what measures the agents?</li><li>Serves ' + c("goals.md") + ', or only a proxy?</li><li>Tried before (' + c("optimizations.md") + ')? A smaller change?</li><li>Upstream: cause really in the plugin; holds for other projects; nothing identifies the project?</li></ul><p>Verdict ' + c("sound") + ' · ' + c("revise") + ' · ' + c("reject") + '. Rejected proposals are dropped unless answered with evidence. The same check runs on keep verdicts at contract time.</p>' },
+
+op_gate: { kicker: "Human gate · optimize step 4", title: "Choose proposals", chips: ["Decision needed"], body:
+'<p>Table: id, tier, change, predicted effect, validation and cost, challenger verdict; plus due contracts, new upstream reports and approved ones waiting to be filed. You choose. Tier 3 is shown as recommendations only.</p><p><b>Unattended</b>: every tier-1 proposal + tier-2 proposals whose replay passes within ' + c("max_eval_cost_usd") + '. Canaries need a person; tier 3 never.</p>' },
+
+op_impl: { kicker: "Optimize · step 5", title: "Implement", chips: ["one commit per proposal"], body:
+'<p>In the worktree: one commit per approved proposal, ' + c("singularity-optimize: O-… &lt;title&gt;") + ', containing only that change. Guideline changes add a curation line with the proposal id as ' + c("ref") + '. Each proposal enters ' + c("optimizations.md") + ' as ' + c("validating") + ', wrapped at 80 columns.</p>' },
+
+op_validate: { kicker: "Optimize · step 6", title: "Validate", chips: ["workflows/replay-evals.js", "trials ≥ 3"], body:
+'<h4>Review behaviour: replay</h4><ul><li>Each ' + c("evals/&lt;id&gt;/case.md") + ' with the absolute path of its ' + c("change.patch") + '.</li><li>Variants ' + c("baseline") + ' and ' + c("candidate") + ', both with the full lens list and binding: the proposal is the only difference.</li><li>≥ 3 trials per variant and case (the reviewer isn\'t deterministic), each in its own worktree; judge: sonnet · low.</li><li>Holdout reported separately; estimated cost shown first unless unattended.</li></ul>' +
+'<p><b>Adopt</b> only if the candidate gets right, in most trials, cases the baseline gets wrong in most trials, and gets no case worse, holdout included. 1–2 cases or ' + c("flaky") + ' cases are noise. Otherwise ' + c("git revert") + ' and ' + c("rejected") + ' (with ' + c("insufficient evidence") + ' when that is why).</p>' +
+'<h4>Guideline admission</h4><p>Review guidelines learn jobs added since the last optimization, whose defect has an eval case: that case and the non-holdout cases replayed with and without the guideline. Not better on its case, or worse elsewhere → tier-1 proposal to rewrite or remove.</p><h4>Not replayable: canary</h4><p>Spec, plan, implement behaviour, stages, the implementer\'s model: baseline metrics + check-after point; judged on whether the targeted defects and corrections stopped and nothing clearly got worse.</p>' },
+
+op_deliver: { kicker: "Optimize · steps 7–8", title: "Contracts, archive, deliver", chips: ["optimizations.md", "draft PR/MR"], body:
+'<ul><li>Due contracts (' + c("canary") + ', ' + c("validating") + ', ' + c("adopted") + '): compare prediction with mechanical records (review and fix rounds, first-pass verification, escaped defects, times, tokens), never with labels the learn job assigned. Note ' + c("plugin_version") + ' or model changes; a workaround waiting on a plugin fix counts only release runs.</li><li>Status ' + c("adopted") + ', ' + c("extended") + ' or ' + c("revert-proposed") + '; keep/extend verdicts go to the reviewer (Task C) first.</li><li>Every proposal recorded with its final status, rejected ones included.</li><li>Push, open a <b>draft</b> PR/MR "singularity: workflow optimization &lt;date&gt;", remove the worktree; the branch stays.</li></ul>' },
+
+up_report: { kicker: "Upstream", title: "Upstream report", chips: [".claude/singularity/upstream/U-&lt;date&gt;-&lt;n&gt;-&lt;slug&gt;.md"], body:
+'<p>When the cause is in the shared plugin: an agent\'s instructions, the protocol, a default, a standard, a template, a script bug, a Claude Code feature to adopt, or a candidate with evidence from ≥ 2 runs. A fix right only for this stack is a project change.</p><ol><li>Find the cause in ' + c("&lt;plugin root&gt;") + ' at the installed version; quote the lines.</li><li>Check it isn\'t known: existing reports; ' + c("gh issue list --repo &lt;owner/repo&gt; --state all --search \"&lt;keywords&gt;\"") + '.</li><li>Optional local workaround: an ordinary proposal with its own contract.</li></ol>' +
+'<p>Sections: status, plugin version, component; Problem; Evidence (counts and categories); Proposed fix (file, current text, proposed text); Contract; Workaround. <b>Publishable</b>: no project, company, repo, branch, host, tracker or people names, ticket keys, project code, secrets or personal data.</p>' },
+
+up_merge: { kicker: "Human gate", title: "Team merges the PR/MR", chips: ["draft = approved"], body:
+'<p>Reports are tier 1, status ' + c("draft") + ', reviewed in the optimizer\'s PR/MR (or uncommitted in the user\'s checkout for a single report on request). A ' + c("draft") + ' report on the default branch is approved and waiting to be filed. The pipeline\'s step 9 notices it.</p>' },
+
+up_file: { kicker: "Human gate", title: "File the issue", chips: ["gh issue create"], body:
+'<p>Show the exact title and body; file only on an explicit yes, because the issue is public:</p><pre>gh issue create --repo &lt;owner/repo&gt; --title "[upstream] &lt;title&gt;" --body-file &lt;report&gt;</pre><p>Status → ' + c("filed &lt;issue URL&gt;") + ' in the optimizer\'s worktree, so it goes through the next PR/MR. Without ' + c("gh") + ' or off GitHub: hand the file to the maintainers. Unattended: never file.</p>' },
+
+up_release: { kicker: "Outside the project", title: "Maintainers and release", chips: ["CONTRIBUTING.md", "scripts/release.sh"], body:
+'<ol><li>Triage: confirm the cause at the reported version; several projects reporting it is the strongest evidence.</li><li>Reproduce as a plugin eval case in ' + c("plugins/singularity/evals/") + ', from a generic example.</li><li>Smallest fix; run the suite on the branch and on ' + c("main") + '; adopt only if the case passes and nothing regresses.</li><li>Changelog line; release: tag ' + c("singularity--v&lt;version&gt;") + ', ' + c("stable") + ' moves, GitHub release.</li></ol>' +
+'<p>Follow-up each optimizer run: ' + c("gh issue view &lt;n&gt; --repo &lt;owner/repo&gt; --json state,stateReason,comments") + '. Fixed in a release the project runs → ' + c("adopted &lt;version&gt;") + ' and a proposal to remove the workaround. Declined → ' + c("declined") + '; the workaround stays only while its contract holds.</p>' }
+  };
+
+  /* ---------- scenarios ---------- */
+  var S = [
+    { id: "ticket", title: "Feature from a tracker ticket", cmd: "/singularity:feature ABC-123", sum: "The full standard path with both gates, no defects: every stage runs once.", steps: [
+      ["request", "The argument is a ticket ID, so the tracker skill handles it. No flags: gates on, size decided by the pipeline."],
+      ["setup", "Config read, no lock held, checkout clean. get(ABC-123), move(in_progress). Sized standard. Work dir .agentic/work/abc-123-<name>/, run.json started."],
+      ["spec", "The spec writer reads the touched code and guidelines/spec.md and writes spec.md; the orchestrator copies it to spec.draft.md."],
+      ["gate1", "You answer the open questions and approve. The wait is recorded as gate_wait_s; any edit becomes a correction for learn."],
+      ["plan", "The planner writes plan.md: checkbox steps with tests first, mapped to AC numbers."],
+      ["gate2", "You approve the plan; plan.draft.md keeps the original."],
+      ["afterplan", "No after_plan agents configured: nothing runs."],
+      ["impl", "Branch feature/ABC-123-<slug>, test-guard reset, baseline taken. The implementer goes test-first, freezing each red test."],
+      ["stopgate", "It stops; SubagentStop runs the checks. All pass: it may finish."],
+      ["afterimpl", "No after_implement agents."],
+      ["checks", "run-checks.sh exits 0, test-guard check prints nothing, change.diff and change.stat are written."],
+      ["review", "Four lenses in parallel. No blocking findings; two advisory should-fix notes go to review.md."],
+      ["verify", "PASS. Every AC maps to a passing test; the Verification Summary lists one missing boundary test as a gap."],
+      ["beforeho", "No before_handoff agents."],
+      ["handoff", "summary.md written. Learn runs before any commit; auto_commit and auto_pr are false, so the change stays in the working tree."],
+      ["learn", "No defect, no correction: the digest line is appended, no guideline changes."],
+      ["optcheck", "Seventh run since the last optimization: nothing due. Final report to you."]
+    ]},
+    { id: "small", title: "Small change", cmd: "/singularity:feature T12 small", sum: "One sentence, a few files, nothing risky: AC-only spec, one gate, no plan, a narrower review.", steps: [
+      ["request", "small forces the size; without it the pipeline could pick small itself."],
+      ["setup", "Size small: fits one sentence, a few files in one area, nothing on the risk list."],
+      ["spec", "Spec writer told the size: goal, one-line problem, ACs with boundary and failure cases, open questions."],
+      ["gate1", "The only gate. Approve the ACs; they are the plan."],
+      ["impl", "No plan stage: the implementer works per acceptance criterion, still test-first with freezes.", ["gate1>impl"]],
+      ["checks", "test-guard check runs without --plan."],
+      ["review", "Correctness only; security too if the change comes near the risk list. A change that grew while built is reviewed as standard."],
+      ["verify", "Same verification as any run."],
+      ["handoff", "Hand-off as usual."],
+      ["learn", "Digest records size: small."]
+    ]},
+    { id: "defect", title: "Defect report", cmd: "/singularity:feature Defect: saving a draft with an empty title returns 500 instead of 400", sum: "Reproduction first: AC 1 is the failing case, plan step 1 is the failing test.", steps: [
+      ["request", "Plain text: no tracker reads or updates. Kind: defect."],
+      ["setup", "Work dir named after the request; this run can't be resumed by ID later."],
+      ["spec", "AC 1 is the reproduction (input, observed 500, expected 400), then the root-cause hypothesis and the code path."],
+      ["gate1", "Confirm the reproduction and expected behaviour."],
+      ["plan", "Step 1: the failing test that reproduces the defect."],
+      ["gate2", "Approve."],
+      ["impl", "The test fails for the right reason, is frozen, then the fix makes it pass.", ["gate2>afterplan", "afterplan>impl"]],
+      ["checks", "Checks pass."],
+      ["review", "Correctness confirms the fix covers the empty and whitespace-only title."],
+      ["verify", "PASS; the summary maps the defect to its reproduction test."],
+      ["handoff", "Hand-off."],
+      ["learn", "If git log shows an earlier pipeline run changed this code, the digest gets fixes: <slug>, the defect is recorded for that run as source: later-fix, acted on now, and becomes an eval case."],
+      ["o_eval", "Eval case from the defect the earlier review missed: change.patch as that run's reviewers saw it, plus case.md."]
+    ]},
+    { id: "blocking", title: "Blocking review finding", cmd: "security lens: \"GET /orders/:id returns other users' orders\"", sum: "Challenge, reproduce with a failing test, fix, re-review only the lens that blocked; at most two rounds.", steps: [
+      ["checks", "Checks passed; change.diff written."],
+      ["review", "Task A: the security lens reports a blocking finding with file:line, evidence and fix."],
+      ["review", "Task B: a second reviewer tries to disprove it, finds the path reachable, confirms at blocking."],
+      ["fix", "Fix round at effort high: a test that fetches another user's order fails, is frozen; the ownership check is added.", ["review>fix"]],
+      ["checks", "Step 4 again: run-checks, test-guard check, new change.diff.", ["fix>checks"]],
+      ["review", "Only the security lens re-reviews, plus a challenger for anything blocking. Clean."],
+      ["verify", "PASS."],
+      ["handoff", "summary.md lists the fixed finding."],
+      ["learn", "Reproduced by a failing test = tool-confirmed: act now. Cause guideline-missing → a rule for api/** on ownership checks."],
+      ["o_guidelines", "New G-id in .claude/rules/singularity/api.md, paths: [\"api/**\"]; check-guidelines.sh passes."],
+      ["stop", "Alternative: blockers still standing after 2 rounds → blocked, comment, learn, unlock, report."]
+    ]},
+    { id: "failing", title: "Checks keep failing", cmd: "lint fails after implement", sum: "The stop gate keeps the implementer working; the checks stage gives two fix rounds; then the run stops.", steps: [
+      ["impl", "The implementer says it is done."],
+      ["stopgate", "run-checks exits 1 → hook exits 2: \"block 1 of 3\". The implementer gets the failure as its next instruction.", ["impl>stopgate"]],
+      ["impl", "It fixes the cause, or says the failure predates its change. Up to checks.stop_retries blocks in a row.", ["stopgate>impl"]],
+      ["checks", "Still exit 1: output goes to implement as a fix round. Baseline failures are reported but don't count.", ["impl>afterimpl", "afterimpl>checks"]],
+      ["fix", "Fix round 1, then 2, each followed by step 4.", ["checks>fix"]],
+      ["checks", "Still failing after 2 rounds.", ["fix>checks"]],
+      ["stop", "move(blocked), comment with the reason and work dir, learn, lock and baseline removed.", ["checks>stop"]],
+      ["learn", "The stop and its failing command reach the digest (stopped).", ["stop>learn"]]
+    ]},
+    { id: "frozen", title: "A frozen test gets edited", cmd: "implementer edits tests/orders.test.ts", sum: "The guard blocks edits to frozen tests; test-guard check turns any test change the plan didn't name into a blocking finding.", steps: [
+      ["impl", "After the red step: test-guard.sh freeze tests/orders.test.ts."],
+      ["freezeguard", "An Edit to the frozen test → PreToolUse exits 2: blocked, with the instruction to stop and report if the test is wrong.", ["impl>freezeguard"]],
+      ["impl", "It changes the code instead, or stops and reports that the test is wrong. You decide; test-guard.sh reset unfreezes all."],
+      ["checks", "test-guard check --base --plan: an existing test changed that the plan doesn't name → blocking finding from test-guard.", ["impl>afterimpl", "afterimpl>checks"]],
+      ["review", "The challenger confirms it unless the spec requires that test change."],
+      ["fix", "Fix round: restore the test, fix the code.", ["review>fix"]]
+    ]},
+    { id: "unattended", title: "No gates, or unattended", cmd: "claude -p --permission-mode auto \"/singularity:feature ABC-123 no-gates\"", sum: "no-gates skips approvals; an unattended run also refuses every situation that would need a person.", steps: [
+      ["request", "no-gates skips both approval gates. A scheduled or headless run is also unattended. Headless, Claude Code refuses writes under .claude/ outside auto mode, so the learn step would save nothing."],
+      ["setup", "Unattended: any lock → stop; uncommitted changes → stop; ticket already in progress, blocked or in review → report and stop; old lesson files are migrated without asking."],
+      ["spec", "Spec written; gate skipped."],
+      ["plan", "Plan written; gate skipped.", ["gate1>plan"]],
+      ["afterplan", "A project stage reporting a blocker → stop early, no question.", ["gate2>afterplan"]],
+      ["review", "Review, verification and their stop rules are unchanged."],
+      ["handoff", "Commits or opens a PR/MR only as conventions allow; a task file stays in review."],
+      ["optcheck", "A due optimization is reported, not offered."]
+    ]},
+    { id: "resume", title: "Resume an interrupted run", cmd: "/singularity:feature ABC-123   (again)", sum: "Same command; status shown; on yes it continues from the first stage run.json doesn't mark done.", steps: [
+      ["request", "Same command as the run that died or stopped. next never resumes."],
+      ["setup", "Ticket is in_progress or blocked → status and last log lines shown; another session may still hold it. On yes: move(in_progress) (files tracker checks the state), comment \"Resumed\"."],
+      ["setup", "Work dir <work_dir>/abc-123-*/ exists → run.json gives the first unfinished stage. No run.json (pre-0.4.0): no spec.md → 1, no plan.md → 2, unchecked steps → 3, no review.md → 4, no summary.md → 6."],
+      ["gate2", "A gate run.json doesn't record as approved is shown again. Drafts are kept for learn."],
+      ["impl", "Only the unchecked plan steps; the existing baseline is kept.", ["gate2>afterplan", "afterplan>impl"]],
+      ["checks", "The run continues normally."]
+    ]},
+    { id: "queue", title: "Work through task files", cmd: "/singularity:feature next", sum: "tracker.type: files. The claim is an atomic rename, so two sessions never take one task.", steps: [
+      ["request", "next: files tracker only."],
+      ["setup", "tasks.sh next → first TODO by priority, then ID. move in_progress renames TODO-T12-… to PROGRESS-T12-… (the claim). Lost the race → next again. Comment \"Started: <path>\". In a worktree the script runs in the main checkout's folder."],
+      ["spec", "The task file's content is the ticket; its # heading is the title."],
+      ["impl", "Normal pipeline.", ["spec>gate1", "gate1>plan", "plan>gate2", "gate2>afterplan", "afterplan>impl"]],
+      ["handoff", "No PR/MR: move to REVIEW, comment the summary path, ask whether to mark DONE. Unattended: stays in REVIEW."]
+    ]},
+    { id: "parallel", title: "Two runs, one checkout", cmd: "second /singularity:feature in the same checkout", sum: "The run lock refuses; parallel runs need their own worktree.", steps: [
+      ["request", "A second run starts while another holds this checkout."],
+      ["setup", ".state/active-run names a run started < 12 h ago → stop, naming it. Start the other session with claude --worktree <name>: own checkout, own work dir. The files tracker still claims tasks in the main checkout's folder."],
+      ["stop", "Nothing was changed; no ticket moved. A stale lock (> 12 h, or its run stopped/handed off) would be replaced instead."]
+    ]},
+    { id: "correction", title: "Correct an agent", cmd: "No, we don't use moment here: dates go through formatDate in src/lib/dates.js.", sum: "A hook queues the prompt; the learn job finds the cause and writes one guideline in the narrowest home.", steps: [
+      ["sig_corr", "UserPromptSubmit: the prompt matches a \"don't use\" pattern → queued in <work_dir>/corrections/ with the agent's last message (kept by the Stop hook)."],
+      ["l_job", "Next pipeline run's step 8, or now: @agent-singularity:optimizer learn from corrections. A new session reminds you while the queue is not empty.", ["sig_corr>l_job"]],
+      ["l_gate", "It is a correction, a project rule (\"we don't use\"), confirmed by a person: act now. A question or one-off request would be dropped."],
+      ["l_cause", "implement.md and the rules say nothing about dates → guideline-missing for the implement role."],
+      ["o_guidelines", "One guideline naming formatDate and src/lib/dates.js, in a rule scoped to src/** or in implement.md; check-guidelines.sh confirms the path exists.", ["l_gate>o_guidelines"]],
+      ["o_record", "A correction line: role, category, path, scope, cause, action, guideline id. Never the prompt text. Queue cleared.", ["l_gate>o_record"]],
+      ["o_check", "Had a clear guideline already said it (guideline-ignored): no new text, a proposed check instead (e.g. a lint rule banning moment).", ["l_gate>o_check"]]
+    ]},
+    { id: "human", title: "Learn from human reviews", cmd: "learning.pr_reviews: true", sum: "Each run collects up to three finished PR/MR reviews of earlier runs and turns escaped defects into guidelines and eval cases.", steps: [
+      ["sig_human", "Run digests with a branch and no human_review line: find_change for ≤ 10, keep ≤ 3 merged or closed. review_comments → human-review.md; reviewed head fetched; outcomes.sh edits → human-edits.diff, what people changed after hand-off."],
+      ["l_job", "Handed to the learn job with ref, slug, base, commits and both files.", ["sig_human>l_job"]],
+      ["l_cause", "Which comments and edits are real defects the agents missed (escaped)? Which edits apply a project convention (corrections)? Root cause per item; open findings counted as addressed or not."],
+      ["l_gate", "A person confirmed each: act now."],
+      ["o_guidelines", "Guideline added or fixed where the role at fault reads.", ["l_gate>o_guidelines"]],
+      ["o_eval", "One eval case per escaped defect: change.patch from base to the reviewed commit, case.md; every 5th holdout.", ["l_gate>o_eval"]],
+      ["o_record", "One human_review line per change (ref, slug, outcome, review_s, unmodified, escaped, corrections, addressed), even with no comments or edits.", ["l_gate>o_record"]]
+    ]},
+    { id: "laterfix", title: "A person fixes a run's bug later", cmd: "git commit -m \"fix: order totals include each item's tax\"", sum: "Weeks after a run merged, someone fixes its code on main. The next learn job traces the fix to the run by blame and learns from it.", steps: [
+      ["handoff", "Back then: the run's change was kept as refs/singularity/handoff/<slug>, and its commit carried Singularity-Run: <slug> (or it was squash-merged as its PR/MR)."],
+      ["learn", "Any later run's step 8 (or a learn job for corrections) fetches the default branch and runs outcomes.sh later-fixes."],
+      ["sig_later", "The fix commit reads like a fix; blame at its parent names lines that commit brought in: one line per run, with the landed commit.", ["sig_later>l_job"]],
+      ["l_job", "Reads git show <commit> and the run's digest: the fix corrects behaviour the run got wrong, so it is that run's defect."],
+      ["l_cause", "Nothing the implementer or reviewer reads says prices are net and totals gross → guideline-missing."],
+      ["l_gate", "A person's fix confirms it: act now. A revert for a dropped feature, or a refactoring, would be recorded with \"defect\": false."],
+      ["o_guidelines", "One guideline where both roles read it, naming src/orders.js.", ["l_gate>o_guidelines"]],
+      ["o_eval", "The review missed it: an eval case from <landed>^1 to <landed>.", ["l_gate>o_eval"]],
+      ["o_record", "A later_fix line (ref, kind, slug, defect, defects), so the commit is never analysed again.", ["l_gate>o_record"]]
+    ]},
+    { id: "reject", title: "Reject a tool call and say why", cmd: "No → \"we never call fetch directly: use apiClient in src/lib/api.js\"", sum: "You reject an edit and type what to do instead. The feedback never reaches a hook, so the hooks read it from the transcript.", steps: [
+      ["sig_corr", "Stop (or your next prompt): corrections.sh reads the transcript from its last offset, finds the rejection with your feedback, and queues it with trigger rejection and the rejected call. Rejected without a word: your next prompt is queued instead."],
+      ["l_job", "At the next run's step 8, or now with @agent-singularity:optimizer learn from corrections.", ["sig_corr>l_job"]],
+      ["l_gate", "It says what was wrong and what to do: explicit, confirmed by a person, act now. Only re-asking for the same thing would be implicit: pending until it recurs."],
+      ["l_cause", "No guideline names apiClient → guideline-missing for the implement role."],
+      ["o_guidelines", "One guideline naming apiClient and src/lib/api.js where the implementer reads.", ["l_gate>o_guidelines"]],
+      ["o_record", "A correction line with trigger rejection, never your text. Queue cleared.", ["l_gate>o_record"]],
+      ["o_check", "Enforceable (a lint rule banning fetch outside src/lib/api.js) → also a proposed check.", ["l_gate>o_check"]]
+    ]},
+    { id: "onboard", title: "Onboard a new project", cmd: "/singularity:init-project", sum: "Config and files first, then the optimizer surveys and drafts goals and guidelines for the team to confirm.", steps: [
+      ["ob_init", "Creates singularity.md (commands run once), settings.json, CLAUDE.md imports, goals/guidelines/experience/evals/upstream; confirms the tracker with you."],
+      ["ob_survey", "Optimizer onboard: value, purpose, architecture, build and test, conventions, risk map, the last 20 merged PRs' review comments.", ["ob_init>ob_survey"]],
+      ["ob_context", "Draft goals.md (Status: draft), CLAUDE.md project sections, first guidelines and rules, Do-not-touch entries; tier-2 proposals as canaries.", ["ob_survey>ob_context"]],
+      ["ob_gate", "Decision needed, relayed by init-project: answer questions, correct and confirm goals (Status: confirmed <date>), pick proposals.", ["ob_context>ob_gate"]],
+      ["ob_init", "Git-ignore check on every shared file; then commit. Teammates install with --scope project."]
+    ]},
+    { id: "optimize", title: "Optimization cycle", cmd: "@agent-singularity:optimizer optimize", sum: "Every 10 runs: evidence, at most five ranked proposals, challenge, your choice, one commit each, replay or canary, draft PR/MR.", steps: [
+      ["optcheck", "Step 9 counts ≥ 10 run digests since the last optimizations.md entry and offers the optimizer."],
+      ["o_record", "The digests, corrections and human reviews in runs.jsonl are the evidence base."],
+      ["op_evidence", "optimize-scan: one analyst per stream; evidence.md opens with the quality, flow and value dashboard.", ["o_record>op_evidence"]],
+      ["op_propose", "≤ 5 proposals ranked by harm to the goals, each a falsifiable contract.", ["op_evidence>op_propose"]],
+      ["op_challenge", "The reviewer (Task C) tries to refute each tier-2 proposal and upstream report.", ["op_propose>op_challenge"]],
+      ["op_gate", "You choose; tier 3 stays advice. As a subagent the optimizer returns Decision needed and is restarted with your answer.", ["op_challenge>op_gate"]],
+      ["op_impl", "One commit per proposal on singularity/optimize-<date>.", ["op_gate>op_impl"]],
+      ["op_validate", "Review changes: replay-evals, baseline vs candidate, ≥ 3 trials, holdout separate. Others: canary.", ["op_impl>op_validate"]],
+      ["op_deliver", "Archive every proposal with its status; draft PR/MR with the dashboard and contracts due.", ["op_validate>op_deliver"]]
+    ]},
+    { id: "upstream", title: "Report a plugin problem upstream", cmd: "@agent-singularity:optimizer the reviewer keeps flagging our generated clients; report it upstream", sum: "The optimizer never edits the plugin: it writes a publishable report, the team approves it, you decide whether to file it.", steps: [
+      ["l_cause", "Rejected maintainability findings on generated code: the cause is the shared lens description, not this project (not-guideline, plugin cause)."],
+      ["o_upcand", "Recorded as an upstream candidate with counts.", ["l_gate>o_upcand"]],
+      ["up_report", "Cause quoted from the plugin at the installed version; known issues searched; U-<date>-1-…md with problem, counts, exact text change, contract; optional local workaround."],
+      ["op_challenge", "Task C: is the cause really the plugin's, would the fix hold elsewhere, does anything identify the project?"],
+      ["up_merge", "The team merges the PR/MR: the draft report is approved.", ["up_report>up_merge"]],
+      ["up_file", "Exact title and body shown; on your yes, gh issue create; status filed <URL>.", ["up_merge>up_file"]],
+      ["up_release", "Maintainers reproduce it as a plugin eval case, fix, release. Follow-up sets adopted <version> and proposes removing the workaround.", ["up_file>up_release"]]
+    ]}
+  ];
+
+  /* ---------- rendering ---------- */
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) if (Object.prototype.hasOwnProperty.call(attrs, k)) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  var nodeEls = {}, edgeEls = {};
+  function defs(svg, id) {
+    var d = el("defs", {}, svg);
+    [["", "mk"], ["-lit", "mk-lit"]].forEach(function (m) {
+      var mk = el("marker", { id: id + m[0], viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, d);
+      el("path", { d: "M0,0 L10,5 L0,10 z", "class": m[1] }, mk);
+    });
+  }
+  function drawEdge(g, e, mid) {
+    var d = "M" + e.p.map(function (pt) { return pt[0] + "," + pt[1]; }).join(" L");
+    var path = el("path", { d: d, "class": "edge" + (e.dash ? " dash" : ""), "marker-end": "url(#" + mid + ")" }, g);
+    path.dataset.mid = mid;
+    (edgeEls[e.id] = edgeEls[e.id] || []).push(path);
+    (e.lab || []).forEach(function (l) {
+      var t = el("text", { x: l[0], y: l[1], "text-anchor": l[3] || "start", "class": "elabel" }, g);
+      t.textContent = l[2];
+    });
+  }
+  function drawNode(g, n) {
+    var grp = el("g", { "class": "node k-" + n.k, tabindex: "0", role: "button", "aria-label": n.t + (n.s.length ? ": " + n.s.filter(Boolean).join(", ") : "") }, g);
+    if (n.rc) grp.setAttribute("style", "--rc: var(--r-" + n.rc + ")");
+    grp.dataset.id = n.id;
+    var rx = n.k === "gate" ? Math.min(14, n.h / 2) : n.k === "mech" || n.k === "file" ? 2 : 7;
+    el("rect", { x: n.x - 4, y: n.y - 4, width: n.w + 8, height: n.h + 8, rx: rx + 3, "class": "ring" }, grp);
+    el("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: rx, "class": "box" }, grp);
+    var tx = n.x + 12;
+    if (n.k === "role") { el("circle", { cx: n.x + 13, cy: n.y + 17, r: 4, "class": "dot" }, grp); tx = n.x + 24; }
+    var single = n.h <= 44;
+    var t = el("text", { x: tx, y: n.y + (single ? 25 : 21), "class": "t" }, grp);
+    t.textContent = n.t;
+    n.s.forEach(function (line, i) {
+      if (!line) return;
+      var s = el("text", { x: n.k === "role" ? n.x + 12 : tx, y: n.y + 38 + i * 15, "class": "s" }, grp);
+      s.textContent = line;
+    });
+    nodeEls[n.id] = grp;
+  }
+  function render(svg, W, H, nodes, edges, mid, extra) {
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    defs(svg, mid);
+    var ge = el("g", {}, svg), gn = el("g", {}, svg);
+    edges.forEach(function (e) { drawEdge(ge, e, mid); });
+    if (extra) extra(ge);
+    nodes.forEach(function (n) { drawNode(gn, n); });
+  }
+  var byId = {};
+  A_NODES.concat(B_NODES).forEach(function (n) { byId[n.id] = n; });
+  var chainEdges = [];
+  for (var i = 0; i < CHAIN.length - 1; i++) {
+    var a = byId[CHAIN[i]], b = byId[CHAIN[i + 1]], id = a.id + ">" + b.id, cx = a.x + a.w / 2;
+    var e = { id: id, p: [[cx, a.y + a.h], [cx, b.y]] };
+    if (CHAIN_LABELS[id]) e.lab = [[cx + 8, (a.y + a.h + b.y) / 2 + 4, CHAIN_LABELS[id], "start"]];
+    chainEdges.push(e);
+  }
+  var svgA = document.getElementById("svgA"), svgB = document.getElementById("svgB");
+  render(svgA, 710, 1284, A_NODES, chainEdges.concat(A_EDGES), "arrA");
+  render(svgB, 710, 790, B_NODES, B_EDGES, "arrB", function (g) {
+    B_LABELS.forEach(function (l) { var t = el("text", { x: l[0], y: l[1], "class": "slabel" }, g); t.textContent = l[2]; });
+  });
+
+  /* ---------- inspector ---------- */
+  var detail = document.getElementById("detail");
+  var selected = null;
+  function showNode(id, scroll) {
+    var d = D[id];
+    if (!d) return;
+    if (selected && nodeEls[selected]) nodeEls[selected].classList.remove("sel");
+    selected = id;
+    if (nodeEls[id]) nodeEls[id].classList.add("sel");
+    detail.innerHTML = '<div class="kicker">' + d.kicker + '</div><h3>' + d.title + '</h3>' +
+      (d.chips.length ? '<ul class="chips">' + d.chips.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>" : "") + d.body;
+    detail.scrollTop = 0;
+    if (scroll && nodeEls[id]) scrollToNode(id);
+  }
+  function scrollToNode(id) {
+    var r = nodeEls[id].getBoundingClientRect();
+    var vh = window.innerHeight, narrow = window.matchMedia("(max-width: 1023px)").matches;
+    var bottom = narrow ? vh * 0.46 : vh;
+    if (r.top < 60 || r.bottom > bottom) {
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: window.scrollY + r.top - (narrow ? 70 : vh / 3), behavior: reduce ? "auto" : "smooth" });
+    }
+  }
+  Object.keys(nodeEls).forEach(function (id) {
+    var g = nodeEls[id];
+    g.addEventListener("click", function () { setSheet(false); showNode(id, false); });
+    g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSheet(false); showNode(id, false); } });
+  });
+
+  /* ---------- scenario player ---------- */
+  var sel = document.getElementById("scn"), prev = document.getElementById("prev"), next = document.getElementById("next");
+  var count = document.getElementById("count"), stepText = document.getElementById("stepText"), stepList = document.getElementById("stepList"), scnCmd = document.getElementById("scnCmd");
+  var free = document.createElement("option"); free.value = ""; free.textContent = "Explore freely (no scenario)"; sel.appendChild(free);
+  S.forEach(function (s) { var o = document.createElement("option"); o.value = s.id; o.textContent = s.title; sel.appendChild(o); });
+  var cur = null, k = 0;
+  function clearPlay() {
+    [svgA, svgB].forEach(function (s) { s.classList.remove("playing"); });
+    Object.keys(nodeEls).forEach(function (id) { nodeEls[id].classList.remove("visited", "current"); });
+    Object.keys(edgeEls).forEach(function (id) { edgeEls[id].forEach(function (p) { p.classList.remove("lit"); p.setAttribute("marker-end", "url(#" + p.dataset.mid + ")"); }); });
+  }
+  function lightEdge(id) {
+    (edgeEls[id] || []).forEach(function (p) { p.classList.add("lit"); p.setAttribute("marker-end", "url(#" + p.dataset.mid + "-lit)"); });
+  }
+  function play(id, step, scroll) {
+    clearPlay();
+    cur = S.filter(function (s) { return s.id === id; })[0] || null;
+    sel.value = cur ? cur.id : "";
+    if (!cur) {
+      count.textContent = ""; stepText.textContent = "Select any box in the schema to read its contract, or pick a scenario."; stepList.innerHTML = ""; scnCmd.textContent = "";
+      prev.disabled = next.disabled = true;
+      return;
+    }
+    k = Math.max(0, Math.min(step || 0, cur.steps.length - 1));
+    [svgA, svgB].forEach(function (s) { s.classList.add("playing"); });
+    for (var i = 0; i <= k; i++) {
+      var st = cur.steps[i];
+      nodeEls[st[0]].classList.add("visited");
+      if (i > 0) lightEdge(cur.steps[i - 1][0] + ">" + st[0]);
+      (st[2] || []).forEach(lightEdge);
+    }
+    var now = cur.steps[k][0];
+    nodeEls[now].classList.add("current");
+    scnCmd.textContent = cur.cmd;
+    count.textContent = (k + 1) + " / " + cur.steps.length;
+    stepText.textContent = cur.steps[k][1];
+    stepList.innerHTML = cur.steps.map(function (st, i) { return '<li data-i="' + i + '"' + (i === k ? ' class="on"' : "") + ">" + D[st[0]].title + "</li>"; }).join("");
+    var on = stepList.querySelector("li.on"); if (on) stepList.scrollTop = on.offsetTop - stepList.offsetTop - 40;
+    prev.disabled = k === 0; next.disabled = k === cur.steps.length - 1;
+    showNode(now, scroll);
+  }
+  sel.addEventListener("change", function () { play(sel.value, 0, true); });
+  prev.addEventListener("click", function () { if (cur) play(cur.id, k - 1, true); });
+  next.addEventListener("click", function () { if (cur) play(cur.id, k + 1, true); });
+  stepList.addEventListener("click", function (ev) { var li = ev.target.closest("li"); if (li && cur) play(cur.id, +li.dataset.i, true); });
+  document.addEventListener("keydown", function (ev) {
+    if (!cur || /INPUT|SELECT|TEXTAREA/.test(ev.target.tagName)) return;
+    if (ev.key === "ArrowRight" && k < cur.steps.length - 1) { play(cur.id, k + 1, true); }
+    if (ev.key === "ArrowLeft" && k > 0) { play(cur.id, k - 1, true); }
+  });
+  detail.addEventListener("click", function (ev) {
+    var a = ev.target.closest("[data-node],[data-scn]");
+    if (!a) return;
+    ev.preventDefault();
+    if (a.dataset.scn) { play(a.dataset.scn, 0, true); return; }
+    showNode(a.dataset.node, true);
+  });
+
+  /* mobile sheet */
+  var insp = document.getElementById("inspector"), sheet = document.getElementById("sheet");
+  function setSheet(col) {
+    insp.classList.toggle("collapsed", col);
+    document.body.classList.toggle("sheet-collapsed", col);
+    sheet.textContent = col ? "Details" : "Hide";
+    sheet.setAttribute("aria-expanded", String(!col));
+  }
+  sheet.addEventListener("click", function () { setSheet(!insp.classList.contains("collapsed")); });
+  if (window.matchMedia("(max-width: 1023px)").matches) setSheet(true);
+
+  /* scenario cards */
+  var cards = document.getElementById("cards");
+  cards.innerHTML = S.map(function (s) {
+    var esc = function (x) { return x.replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+    return '<article class="card"><h3>' + s.title + '</h3><p class="cmdline">' + esc(s.cmd) + '</p><p>' + s.sum + '</p><button type="button" data-play="' + s.id + '">Play · ' + s.steps.length + ' steps</button></article>';
+  }).join("");
+  cards.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-play]");
+    if (!b) return;
+    play(b.dataset.play, 0, false);
+    document.getElementById("flow").scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+
+  /* initial state: hash (#s-<id> or #n-<id>) or the first scenario */
+  var h = (location.hash || "").slice(1);
+  if (/^s-/.test(h) && S.some(function (s) { return s.id === h.slice(2); })) play(h.slice(2), 0, false);
+  else if (/^n-/.test(h) && D[h.slice(2)]) { play("", 0, false); showNode(h.slice(2), false); }
+  else play("ticket", 0, false);
+})();
+</script>
+</html>

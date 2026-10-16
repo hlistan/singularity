@@ -1,87 +1,86 @@
 # Optimize: lead feature delivery towards its best
 
-The optimizer's playbook for the slow loop. The learn job records every run; this loop reads all of them and asks three questions: what fails, where time and effort are wasted, and whether the work serves the project's goals (`goals.md`). It changes the harness where the answers point, and proves that each change helps. Everything a run produces goes into one run directory and one branch, and nothing merges without a human.
+The optimizer's slow loop: read all runs the learn job recorded for failures, waste and fit to the goals (`goals.md`); change the harness accordingly; prove each change helps. Nothing merges without a human.
 
 ## 0. Set up
 
 - **Settings**: `optimization.every_runs`, `web_scan` and `max_eval_cost_usd` from `.claude/singularity.md` (defaults 10, true, 10).
-- **Run directory**: `<work_dir>/optimizer-<YYYY-MM-DD>/`.
-- **Branch and worktree**: `singularity/optimize-<YYYY-MM-DD>`, from the default branch, checked out in `<run dir>/worktree` (see "Your own worktree" in the agent definition). Every change in steps 2 to 7 is made there.
-- **Sources**: the goals in `.claude/singularity/goals.md`, the record in `learning.dir` (default `.claude/singularity/experience`), the guidelines in `.claude/singularity/guidelines/` and `.claude/rules/singularity/`, the work dir and `.claude/singularity/evals/`.
-- **Focus**: words in the request beyond the job, such as "review false positives", narrow the evidence and the proposals.
+- **Run directory**: `<work_dir>/optimizer-<YYYY-MM-DD>-optimize/` (agent definition, "State lives in files").
+- **Branch and worktree**: `singularity/optimize-<YYYY-MM-DD>` from the default branch, in `<run dir>/worktree` (agent definition, "Your own worktree"); all changes in steps 2 to 7 go there.
+- **Sources**: goals (`.claude/singularity/goals.md`), the record (`learning.dir`, default `.claude/singularity/experience`), guidelines (`.claude/singularity/guidelines/`, `.claude/rules/singularity/`), the work dir, `.claude/singularity/evals/`.
+- **Focus**: extra words in the request (e.g. "review false positives") narrow evidence and proposals.
 
 ## 1. Evidence
 
-As the session, run the `singularity:optimize-scan` workflow with
+Session: run the `singularity:optimize-scan` workflow with
 `{ sources: [{ name, experienceDir, workDir, evalsDir }] (absolute paths), focus, webScan: <web_scan>, today: <YYYY-MM-DD>, pluginRoot: "<plugin root>" }`.
 
-As a subagent, read `<plugin root>/workflows/optimize-scan.js` and do what it does: spawn one read-only subagent per evidence stream in its `streams` list, in parallel, each with that stream's prompt followed by the `common` text, at the stream's `effort` (and `model`, if set), and ask each for JSON that matches the stream's schema. Skip the `practice` stream when `web_scan` is false.
+Subagent: do what `<plugin root>/workflows/optimize-scan.js` does: one read-only subagent per stream in its `streams` list, in parallel, with the stream's prompt plus the `common` text, at its `effort` (and `model`, if set), returning JSON matching its schema. `web_scan` false -> skip the `practice` stream.
 
-If the guideline audit reports lesson files from before 0.5.0, migrate them first (`onboard.md`, "Migrating lessons"), then gather the evidence again.
+Guideline audit reports lesson files from before 0.5.0 -> migrate them (`onboard.md`, "Migrating lessons"), then re-gather the evidence.
 
-Save the result as `evidence.json`. Also write `evidence.md`, a readable digest that starts with a **health dashboard** in three parts, each metric with its trend and whether it is getting better or worse: **quality** (escaped defects, blocking findings, first-pass verification, changes that later needed a fix), **flow** (lead time, the share of it spent working rather than waiting, rework, runs that stopped, cost per run) and **value** (how the effort splits across the goals, defects and maintenance, and where the quality problems hit what users rely on). Name any stream that failed; don't fill its gap by guessing.
+Save the result as `evidence.json`, and a digest as `evidence.md` opening with a **health dashboard**, each metric with its trend: **quality** (escaped defects, blocking findings, first-pass verification, stop-gate blocks, changes merged without human edits, changes later fixed or reverted, open findings people addressed per lens), **flow** (lead time, share working vs waiting, rework, stopped runs, cost per run), **value** (effort split across goals, defects and maintenance; where quality problems hit what users rely on). Name failed streams; don't fill their gaps by guessing.
 
 ## 2. Propose
 
-Read the goals, the evidence pack, `optimizations.md`, the current config, the context files and project agents the evidence points at, and, for failures whose fix belongs in the plugin, the plugin files behind them (`<plugin root>`).
+Read the goals, evidence pack, `optimizations.md`, config, the context files and project agents the evidence points at, and the plugin files (`<plugin root>`) behind plugin-side failures.
 
-1. For contracts the evidence marks as due, recommend keep, extend or revert, with the numbers.
-2. Write `proposals.md`, ranked by harm to the goals and their users, times frequency (principle 2 in the agent definition), with at most 5 project changes. Look for flow waste as well as failures: time spent waiting at gates or for human review, rework loops, stages that cost much and catch little for this project, process that is heavier than a kind of work needs, and effort going to work that serves no goal. For each, give:
-   - an id (`O-<date>-<n>`), a title, its tier and the goal it serves;
-   - the contract fields;
-   - a diff sketch (file and exact lines);
+1. Due contracts: recommend keep, extend or revert, with numbers.
+2. Write `proposals.md`: at most 5 project changes, ranked by harm to the goals and their users, times frequency (agent definition, principle 2). Count flow waste too: waiting at gates or for human review, rework loops, costly stages that catch little here, process heavier than the work needs, effort serving no goal. Each gives:
+   - id (`O-<date>-<n>`), title, tier, goal served;
+   - the contract fields; a diff sketch (file and exact lines);
    - the validation plan, with an eval cost estimate.
-3. Act on the context and guideline audits: stale or wrong guidelines are a tier-1 proposal, handled as in `onboard.md` ("Refreshing the context"); a guideline that a check could enforce is a proposal for that check; a guideline that keeps failing (its category recurs after it was added or changed, or defects and corrections keep being classed `guideline-ignored` against it, per `runs.jsonl`) is replaced by a check rather than reworded again. A missing guideline is added only for a defect or a user correction whose root cause it is (`learn.md`): an optimization adds none on its own judgement. A `pending` category that has recurred without the learn job acting on it is a tier-1 proposal.
-4. For each failure whose fix belongs in the plugin, draft an upstream report (`upstream.md`), and list it in `proposals.md` with its local workaround, if any, and the run refs behind its evidence.
-5. Weigh the learn job's `proposals` and `proposed_checks` from recent runs (in the guideline audit): one that recurs across runs is evidence; make it a proposal here, with a contract, or say in the rejected list why not.
-6. When the evidence says the goals themselves look out of date (most effort goes to something no goal names, or a goal has had no work in months), recommend a change to `goals.md` for the team to make: it is tier 3.
+3. Context and guideline audits, per guideline: stale or wrong -> tier-1 proposal (`onboard.md`, "Refreshing the context"); enforceable by a check -> propose the check; keeps failing (its category recurs after an add or change, or `runs.jsonl` keeps classing defects and corrections `guideline-ignored` against it, `covered_by` or `cites`) -> replace with a check, don't reword again; missing -> add only for a defect or user correction it is the root cause of (`learn.md`), never on your own judgement. A `pending` category recurring without learn-job action -> tier-1 proposal.
+   - **Lifecycle** (the guideline audit's counts per id): work that applied or cited it still failed -> correct it; in an always-loaded file (`CLAUDE.md`, `project.md`), never applied, cited or matched by a defect, and the files it names unchanged for 90 days -> move it to a path-scoped rule. Never remove a still-true guideline for disuse alone: it may be what prevents its defect.
+   - **Weak tests** (later fixes or human edits adding the test that was missing, tests passing on wrong behaviour) recurring -> propose a mutation-testing check on changed lines in `verify.sh` (tier 2).
+   - **Review precision**: a lens whose open findings people rarely address (`addressed` in `human_review` lines) -> narrow its description or make it advisory (tier 2); a blocking lens stays blocking unless a human decides (tier 3).
+4. Plugin-side failure -> draft an upstream report (`upstream.md`); list it in `proposals.md` with any local workaround and the run refs behind its evidence.
+5. Learn-job `proposals` and `proposed_checks` recurring across recent runs (guideline audit) are evidence -> a proposal with a contract, or a reason in the rejected list.
+6. Goals look outdated (most effort on something no goal names, or a goal without work in months) -> recommend a `goals.md` change for the team (tier 3).
 7. End with a short "considered and rejected" list.
 
 ## 3. Challenge
 
-For each tier-2 proposal and each upstream report, spawn `singularity:reviewer` with **Task C**, giving it the proposal or report and the evidence it cites. Attach each verdict to `proposals.md`. Drop proposals and reports that get **reject**, unless you answer the objection with evidence.
+Each tier-2 proposal and upstream report, with its cited evidence -> `singularity:reviewer`, **Task C**. Attach verdicts to `proposals.md`. Drop what gets **reject** unless evidence answers the objection.
 
 ## 4. Gate
 
-Show the user a compact table: id, tier, change, predicted effect, validation and its estimated cost, challenger verdict. Add the contracts that are due, the new upstream reports, and the approved ones waiting to be filed (`upstream.md`, "Deliver and file"). Ask which proposals to implement. Present tier 3 as recommendations only; a human makes those changes.
+Show the user a compact table (id, tier, change, predicted effect, validation and its estimated cost, challenger verdict), plus due contracts, new upstream reports and approved ones awaiting filing (`upstream.md`, "Deliver and file"). Ask which to implement. Tier 3: recommendations only; a human makes them.
 
-Unattended: implement every tier-1 proposal, plus each tier-2 proposal with a replay that passes within `max_eval_cost_usd`. A canary needs a person to choose it, so leave canaries as recommendations. Never tier 3.
+Unattended: implement all tier-1 proposals and tier-2 ones whose replay passes within `max_eval_cost_usd`. Canaries stay recommendations (a person chooses them). Never tier 3.
 
 ## 5. Implement
 
-In the worktree, on the optimization branch, implement each approved proposal as **one commit** (`singularity-optimize: O-… <title>`) that contains only the described change. When a proposal adds, changes or removes guidelines, also append a curation line to `runs.jsonl` with its id as `ref` (format in `learn.md`). Append each to `optimizations.md` with status `validating`, in the format in that file's header and wrapped at 80 columns, since projects lint it with markdownlint.
+In the worktree, each approved proposal is **one commit** (`singularity-optimize: O-… <title>`) with only the described change; one that adds, changes or removes guidelines also appends a curation line to `runs.jsonl`, `ref` = its id (format in `learn.md`). Append each to `optimizations.md` as `validating`, in that file's header format, wrapped at 80 columns (projects markdownlint it).
 
 ## 6. Validate (tier 2)
 
 Follow each proposal's validation plan:
 
-- **Review behaviour** (lenses, extra reviewers, the review model or effort): replay the project's eval cases.
-  - Read each `.claude/singularity/evals/<id>/case.md`, and pass its frontmatter fields plus the **absolute** path of its `change.patch`.
-  - Run two variants, `baseline` (the current config) and `candidate` (the proposed config). Give **both** their full lens list and reviewer binding, so that the only difference between them is the proposed change.
-  - Run each variant with `trials` of at least 3. The reviewer isn't deterministic: the same config finds different issues on different runs, so one trial per case can't tell a change from chance.
-  - As the session, run the `singularity:replay-evals` workflow. As a subagent, do what `<plugin root>/workflows/replay-evals.js` does: for each variant, case, lens and trial, spawn the variant's reviewer in its own worktree (`isolation: "worktree"`, or a `git worktree add --detach` under the run directory that you remove afterwards) with the same setup and Task A prompt; judge its findings with a `sonnet` subagent at `low` effort and the same judging prompt; score as the workflow does.
-  - Report non-holdout and holdout results separately. Tell the user the estimated cost before running, unless the run is unattended.
-- **Not replayable** (spec, plan or implement behaviour, a project stage, the implementer's model): ship it as a **canary**. Record the current baseline metrics and the check-after point. Ten runs show breakage, not a small improvement, so judge a canary on whether the defects and corrections it targets stopped, and on whether anything clearly got worse.
+- **Review behaviour** (lenses, extra reviewers, review model or effort): replay the project's eval cases.
+  - Read each `.claude/singularity/evals/<id>/case.md`; pass its frontmatter fields plus the **absolute** path of its `change.patch`.
+  - Two variants, `baseline` (current config) and `candidate` (proposed config), **both** given their full lens list and reviewer binding: only the proposed change differs.
+  - `trials` of at least 3 per variant: the reviewer isn't deterministic; one trial can't tell a change from chance.
+  - Session: the `singularity:replay-evals` workflow. Subagent: do what `<plugin root>/workflows/replay-evals.js` does: per variant, case, lens and trial, the variant's reviewer in its own worktree (`isolation: "worktree"`, or a `git worktree add --detach` under the run directory, removed afterwards) with the same setup and Task A prompt; a `sonnet` judge at `low` effort with the same judging prompt; the workflow's scoring.
+  - Report non-holdout and holdout results separately. Unless unattended, tell the user the estimated cost first.
+- **Not replayable** (spec, plan or implement behaviour, a project stage, the implementer's model) -> **canary**: record baseline metrics and the check-after point. Judge it by whether its targeted defects and corrections stopped and anything clearly got worse (ten runs show breakage, not small gains).
 
-Adopt a proposal only if it gets right, in most trials, cases that the baseline gets wrong in most trials, and gets no case worse, holdout included. A difference of one or two cases, or of cases that flip between trials (`flaky`), is noise, not a win. If the proposal isn't adopted, `git revert` its commit and record it as `rejected`, with the numbers, and with `insufficient evidence` when that is the reason, so that it can be tried again once there are more cases.
+- **Guideline admission** (review guidelines): guidelines in `review.md`, or rules the reviewers load, that learn jobs added since the last optimization for a defect that has an eval case -> replay that case and the non-holdout cases with and without the guideline (two variants, same trials). Not better on its own case, or worse on another -> tier-1 proposal to rewrite or remove it. Counts toward `max_eval_cost_usd`.
+
+Adopt only if, in most trials, it gets right cases the baseline gets wrong in most trials, and gets no case worse, holdout included. One or two cases, or cases flipping between trials (`flaky`), are noise. Not adopted -> `git revert` its commit; record `rejected` with numbers, plus `insufficient evidence` if that is why (retry once there are more cases).
 
 ## 7. Contracts and archive
 
-For entries with status `canary`, `validating` or `adopted` whose check is due:
+Entries with status `canary`, `validating` or `adopted` whose check is due:
 
-1. Compare the prediction with the actual results in the eval results and in what the pipeline records mechanically: review rounds, fix rounds, first-pass verification, escaped defects from human reviews, times and tokens. Don't judge a contract by the categories, `covered_by` or `goal` labels your own learn job assigned; use them only to explain. Note any change of `plugin_version` or models between the baseline and the check, since it can explain a difference. For a workaround waiting on a plugin fix, count only runs on a release (`plugin_version` without `+dev`).
-2. Set the status to `adopted`, `extended` or `revert-proposed`, and record the numbers. Before you keep or extend a behaviour change, give the verdict and its numbers to `singularity:reviewer` (Task C), as you do for proposals.
-3. For a failed contract, write the revert as a proposal.
+1. Compare the prediction with the eval results and the pipeline's mechanical records (review rounds, fix rounds, first-pass verification, escaped defects from human reviews, times, tokens). Use the categories, `covered_by` and `goal` labels your learn job assigned only to explain, never to judge a contract. Note `plugin_version` or model changes between baseline and check. Workaround waiting on a plugin fix -> count only release runs (`plugin_version` without `+dev`).
+2. Set status `adopted`, `extended` or `revert-proposed`, with numbers; before keeping or extending a behaviour change, have `singularity:reviewer` (Task C) challenge the verdict and numbers.
+3. Failed contract -> write the revert as a proposal.
 
-Follow up filed upstream reports as `upstream.md` describes. Make sure every proposal from this run is in `optimizations.md` with its final status, rejected ones included: rejected ideas are knowledge too.
+Follow up filed upstream reports (`upstream.md`). Every proposal from this run, rejected ones included, gets its final status in `optimizations.md`.
 
 ## 8. Deliver
 
-Push the branch and open a **draft** PR/MR with the tracker skill's `open_change`, then remove the worktree (`git worktree remove <run dir>/worktree`); the branch stays. Title it "singularity: workflow optimization <date>". Include the dashboard, the adopted and rejected proposals with their numbers, the tier-3 recommendations, the upstream reports with the run refs behind their evidence, and when each contract is due.
+Push the branch, open a **draft** PR/MR titled "singularity: workflow optimization <date>" with the tracker skill's `open_change`, then remove the worktree (`git worktree remove <run dir>/worktree`; the branch stays). Include: dashboard, adopted and rejected proposals with numbers, tier-3 recommendations, upstream reports with the run refs behind their evidence, contract due dates.
 
-Tell the user, briefly:
-
-- what changed and the measured effect;
-- what was rejected and why;
-- what needs a human decision, including the upstream reports to file once the PR/MR is merged;
-- when the optimizer should run next.
+Tell the user, briefly: what changed, and the measured effect; what was rejected and why; what needs a human decision, including upstream reports to file once the PR/MR merges; when to run the optimizer next.

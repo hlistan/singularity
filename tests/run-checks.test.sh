@@ -205,6 +205,11 @@ gate singularity:implementer a7
 expect_code 2
 OUT="$(git status --porcelain --untracked-files=all)"
 case "$OUT" in *.agentic*) ko "the gate's state is visible to git" ;; *) ok ;; esac
+OUT="$(cat .agentic/work/.state/stop-gate.log)"
+expect_out "	singularity:implementer	1/2	test"
+expect_out "	singularity:implementer	2/2	test"
+OUT="$(find .agentic/work/.state -name '.stop-failed-*')"
+if [ -z "$OUT" ]; then ok; else ko "temporary failure lists left behind"; fi
 teardown
 
 test_case "the stop gate passes when checks pass, for other agents, and when switched off"
