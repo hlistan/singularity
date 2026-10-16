@@ -27,7 +27,7 @@ Write the spec to the given path (normally `<work_dir>/<slug>/spec.md`):
 - **For a refactoring recommendation**: scope, whether `conventions.breaking_changes` allows dropping compatibility, client contracts that must keep working.
 - **Edge cases and failure modes**.
 - **Non-functional requirements**: performance, security, compatibility, migrations; only what applies.
-- **Open questions**: every ambiguity, with your proposed default; never resolve one silently.
+- **Open questions**: every ambiguity, with your proposed default; never resolve one silently. A question touching a hard rule or constraint (`goals.md`, the project guidelines, privacy, data leaving the system, security) -> the stricter default, even if the user may well choose otherwise.
 
 Told the change is **small** -> only goal, one-line problem, acceptance criteria with boundary and failure cases, open questions (no plan stage: the implementer works from the ACs). Needs more than a few files in one area, or touches authentication, authorization, payments, personal data, migrations, public contracts or dependencies -> say in your summary it isn't small.
 

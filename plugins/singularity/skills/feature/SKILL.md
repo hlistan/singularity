@@ -17,6 +17,10 @@ Tell the spec role the kind of work: feature, defect report, QA issue or refacto
 
 The config `.claude/singularity.md` usually arrives through CLAUDE.md; else read it. Missing: stop and tell the user to run `/singularity:init-project`.
 
+**Session in the project root.** The config must be at `.claude/singularity.md` in the session's working directory, the repository root (`git rev-parse --show-toplevel`). Found elsewhere (e.g. a session started one level up to reach sibling repositories) → the project's `CLAUDE.md`, hooks and agents didn't load: stop; tell the user to start Claude Code in the project root, adding sibling repositories with `--add-dir <path>`.
+
+**Every named agent exists.** Each agent the config names (`roles.<role>.agent`, `review.extra_reviewers`, the `stages` lists) must be among the subagent types you can spawn. Missing → stop and name each; a project agent is `.claude/agents/<name>.md`, loaded when the session starts. Never run a role, stage or reviewer as general-purpose or as another agent in its place.
+
 **Lesson files from before 0.5.0.** `learning.dir` (default `.claude/singularity/experience/`) still holds `project.md` or another role's lesson file, or `CLAUDE.md` still imports `experience/project.md`: an old lesson log, unread by the roles. Before anything else, tell the user; unless unattended, let them choose: migrate now or stop. Migrate: spawn the **optimize** role with `migrate, in this checkout, for /singularity:feature`; it turns the lessons into guidelines here, uncommitted, in this run's change. Note it in `summary.md`.
 
 **Role bindings.** Agent per role: `roles.<role>.agent`, else the default:
@@ -36,7 +40,9 @@ Pass `model` and `effort` **only** where the config sets them for that role, els
 
 **Unattended runs.** Scheduled or headless: nobody can answer questions. `no-gates` only skips the two approval gates; it doesn't make a run unattended. Claude Code asks before every write under `.claude/`; headless outside auto mode it refuses them, so the learn step returns its changes unwritten: say so in the report.
 
-**Mechanical steps.** Scripts decide pass and fail by exit code, not output: `${CLAUDE_PLUGIN_ROOT}/scripts/run-checks.sh`, `test-guard.sh`, `change-diff.sh` and `corrections.sh`, all in that folder. Run them with `bash` and the full path as written.
+**Mechanical steps.** Scripts decide pass and fail by exit code, not output: `${CLAUDE_PLUGIN_ROOT}/scripts/run-checks.sh`, `test-guard.sh`, `change-diff.sh`, `run-record.sh` and `corrections.sh`, all in that folder. Run them with `bash` and the full path as written. Never change a repository's index, stash or history to inspect a change (no `git add -N`, `git stash`, `git reset`): `change-diff.sh <base>` (`--stat`, `--root <repo>`) already includes uncommitted and new files.
+
+**Times come from the clock.** `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" stamp <work dir> <span> start|end` at the moment each span starts and ends: `run` (start to hand-off or early stop), each stage (`spec`, `plan`, `implement`, `checks`, `review`, `verify`, `learn`), each project stage (its agent's name), each fix round (`fix-1`, `fix-2`, …) and each gate (`gate-spec`, `gate-plan`: shown to approved). Never type, edit or estimate a time; a span not stamped stays out of the record. `run-record.sh times <work dir>` gives the durations; exit 1 names stamps out of order or unmatched.
 
 **One run per checkout.** Before anything else:
 
@@ -54,7 +60,7 @@ Pass `model` and `effort` **only** where the config sets them for that role, els
 
 Risk list: authentication, authorization, payments, personal or customer data, cryptography and secrets, migrations and schema changes, public APIs and client contracts, concurrency, dependencies, the "Do not touch" areas. In doubt: `standard`. The user can pick `small` or `full` (standard) in the request. A `small` change that grows while built (more files, or onto the risk list) → review as `standard`; note it in the record.
 
-**Project stages.** `stages.after_plan`, `stages.after_implement` and `stages.before_handoff` list project agents: run them one at a time, in list order, passing the work dir path and the stage each follows. Blocking problem → ask the user: fix (e.g. an implement fix round) and re-run the agent, continue anyway, or stop early (step 6). Unattended: stop early.
+**Project stages.** `stages.before_spec`, `stages.after_plan`, `stages.after_implement` and `stages.before_handoff` list project agents: run them one at a time, in list order, passing the work dir path and the stage each follows. Blocking problem → ask the user: fix (e.g. an implement fix round) and re-run the agent, continue anyway, or stop early (step 6). Unattended: stop early. Each returns its report in its final message (a subagent may be refused file writes): write it to `<work dir>/<agent name>.md` yourself, and take counts from the items listed, not the agent's stated total.
 
 **Ticket.** Use the singularity `tracker` skill:
 
@@ -64,16 +70,18 @@ Risk list: authentication, authorization, payments, personal or customer data, c
 - `done` → tell the user and stop, unless they ask to reopen it.
 - `tracker.type` is `none`, or a plain-text request → the text is the ticket.
 
-**Work dir.** `<slug>`: lower-case ticket ID, hyphen, short kebab-case name (task files: the task's own slug), e.g. `t7-fix-login`; plain-text request: the name only. Create `<work_dir>/<slug>/` (default `.agentic/work`). Files tracker: `comment(ticket, "Started: <work dir path>")`. Record the start time (`date -u +%FT%TZ`) as `started`.
+**Work dir.** `<slug>`: lower-case ticket ID, hyphen, short kebab-case name (task files: the task's own slug), e.g. `t7-fix-login`; plain-text request: the name only. Create `<work_dir>/<slug>/` (default `.agentic/work`). Files tracker: `comment(ticket, "Started: <work dir path>")`. Stamp `run start`; its printed time is `started`.
 
 Keep a **run record** in `<work_dir>/<slug>/run.json`; write it after every stage and gate, so a crashed run stays resumable and learnable. Facts, not impressions:
 
-- each stage as it finishes (`spec`, `plan`, `implement`, `review`, `verify`, `handoff`, `learn`), and each approved gate with the times it was shown and approved;
+- each stage as it finishes (`spec`, `plan`, `implement`, `review`, `verify`, `handoff`, `learn`), and each approved gate with the times it was shown and approved (its `gate-*` stamps);
 - kind of work (feature, defect or refactoring), `size`, and the spec's goal from `.claude/singularity/goals.md`;
 - each mechanical-check run (step 4): per-check results and the `test-guard.sh check` report;
 - why it stopped early, if so;
 - the branch, its base commit (the branch point), and the PR/MR once opened;
-- per stage, project stages included: duration (`date` before and after), tokens if the agent result reports them; the hand-off time;
+- per stage, project stages included: duration (from `run-record.sh times`), tokens if the agent result reports them; the hand-off time;
+- every deviation from this protocol (a stage skipped, merged, batched, reordered or run by another agent), with the reason, under `deviations`;
+- each incident: a read-only role that changed the checkout (step 5);
 - implement fix rounds (count, any trigger);
 - each role's actual model;
 - `plugin_version`: the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`; append `+dev` if `${CLAUDE_PLUGIN_ROOT}` contains neither `/plugins/cache/` nor `/plugins/marketplaces/` (a `--plugin-dir` checkout, maybe unreleased);
@@ -89,17 +97,18 @@ Keep a **run record** in `<work_dir>/<slug>/run.json`; write it after every stag
 - Continue from the first stage its `run.json` doesn't mark done. No `run.json` (a pre-0.4.0 run) → infer from the files: no `spec.md` → step 1; no `plan.md` → step 2; unchecked steps in `plan.md` → step 3, with only those steps; no `review.md` → step 4; no `summary.md` → step 6.
 - Tell the user the stage you resume from. Re-show any gate not recorded as approved before passing it.
 - Keep the existing `spec.draft.md` and `plan.draft.md`: the learn job compares them with the finals.
+- Keep `clock.log`; don't stamp `run start` again. A span the interruption left open stays open (`times` lists it); stamp the resumed stage as `<stage>-resumed`.
 
 ## 1. Spec (gate)
 
-Spawn the **spec** role with the ticket text and output path `spec.md`; copy the result to `spec.draft.md`.
-Show the user the spec's goal, acceptance criteria and open questions; **stop for approval**. Apply their answers to `spec.md`.
+First run the `stages.before_spec` agents (**Project stages**) with the ticket text, e.g. research the spec role can't do: it has no web tools. Spawn the **spec** role with the ticket text, the paths those agents wrote, and output path `spec.md`. Keep its draft as written: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" draft <work dir>/spec.md <work dir>/spec.draft.md` (once, read-only; never write a draft again).
+Show the user the spec's goal, acceptance criteria and open questions; **stop for approval**. Apply their answers to `spec.md`. An answer that needs work no one at the gate can do (outside research, a new design) → run the agent that can (a `before_spec` agent, or the spec role) with it, then show the gate again; a later stage that changes an approved spec or plan does the same, and records it under `deviations`.
 
 ## 2. Plan (gate)
 
 Skip for a `small` change: its spec is its plan.
 
-Spawn the **plan** role with the spec path and output path `plan.md`; copy the result to `plan.draft.md`.
+Spawn the **plan** role with the spec path and output path `plan.md`; keep its draft: `run-record.sh draft <work dir>/plan.md <work dir>/plan.draft.md`.
 Show the approach, steps and risks; **stop for approval**.
 Then run the `stages.after_plan` agents (**Project stages**).
 
@@ -125,36 +134,38 @@ The **base** is the branch point: the merge base of the branch with `conventions
 
 The **review** role reviews from a fresh context, once per lens and per project reviewer; a second reviewer challenges each blocking finding. Run them yourself, in parallel; no separate review command exists.
 
-- **Lenses**: `review.lenses` (default: correctness, security, maintainability, testability), then `review.extra_lenses` with their descriptions. Shared lenses: **correctness**, logic, edge cases, error handling, test quality; **security**, injection, authz, secrets, unsafe input, sensitive data; **maintainability**, consistency with existing patterns, naming, duplication, complexity; **testability**, hardcoded values, non-injectable dependencies, non-deterministic or broad-assertion tests, obsolete tests left behind, missing boundary and failure-mode tests, untested contract changes.
+- **Lenses**: `review.lenses` (default: correctness, security, maintainability, testability), then `review.extra_lenses` with their descriptions. Shared lenses: **correctness**, logic, edge cases, error handling, test quality; **security**, injection, authz (every path to a gated capability, beyond the diff), secrets, unsafe input, sensitive data; **maintainability**, consistency with existing patterns, naming, duplication, complexity; **testability**, hardcoded values, non-injectable dependencies, non-deterministic or broad-assertion tests, obsolete tests left behind, missing boundary and failure-mode tests, untested contract changes.
 - **Blocking or advisory.** `review.blocking_lenses` (default: correctness, security) and every agent in `review.extra_reviewers` can block. The rest are advisory: at most `should-fix`, on `review.advisory.model` and `.effort` (default `sonnet`, `high`); findings go to the user and the record, never stop the run.
 
 1. **Review.** In one batch, one review-role agent per lens: `Task A: review through the "<lens>" lens (<description>). Base: <base>. The whole change, new files included, is in <work dir>/change.diff (summary in change.stat). The spec is at <spec path>.`, adding `This lens is advisory: report at most should-fix.` for an advisory lens, at its model and effort. `large`: the correctness lens twice, the second adding `Review the files in the reverse order of change.stat.`. Alongside, each agent in `review.extra_reviewers`, at its own model and effort: `Review the current change (base: <base>) according to your instructions. The whole change, new files included, is in <work dir>/change.diff. The spec is at <spec path>. Report only findings you can support with evidence.` Each returns findings: severity (`blocking`, `should-fix` or `nit`), location, problem, evidence, fix, the guideline it cites. Re-run any reviewer that fails or returns nothing before going on: a missing lens is not a clean review.
-2. **Challenge.** In one batch, one review-role agent per **blocking** finding, `test-guard` ones included: `Task B: challenge this finding from the "<lens or reviewer>" reviewer. Base: <base>. The whole change is in <work dir>/change.diff.`, followed by the finding's location, claimed severity, problem, evidence and proposed fix. Each returns confirmed or not, corrected severity, reason. Only confirmed findings count, at the challenger's severity. Challenger fails → re-run; fails again → keep the finding at its claimed severity, marked **unverified** in `review.md`. Findings below blocking aren't challenged.
+2. **Challenge.** In one batch, one review-role agent per **blocking** finding, `test-guard` ones included: `Task B: challenge this finding from the "<lens or reviewer>" reviewer. Base: <base>. The whole change is in <work dir>/change.diff.`, followed by the finding's location, claimed severity, problem, evidence and proposed fix. Each returns confirmed or not, corrected severity, reason, and whether the proposed fix holds (a corrected fix if not). Only confirmed findings count, at the challenger's severity; a fix round gets the corrected fix. Challenger fails → re-run; fails again → keep the finding at its claimed severity, marked **unverified** in `review.md`. Never put several findings in one challenger: each finding's verdict is its own record. Findings below blocking aren't challenged.
+
+**Read-only roles are checked, not trusted.** Before each review and challenge batch, and after it, take `bash "${CLAUDE_PLUGIN_ROOT}/scripts/change-diff.sh" <base> --hash`, and the same with `--root <repo>` for each other repository the change touches. A hash that differs → a reviewer or challenger wrote (e.g. ran a code generator): record an incident in `run.json` (batch, `git status --short`), show the user the changed files and ask whether to restore them and re-run the batch, or keep them. Never restore files yourself. Unattended: stop early.
 
 Write `review.md`: confirmed and unverified findings, deduplicated, by severity; then advisory; then rejected, with the reason.
 
-Any **blocking** findings → an **implement** fix round with only those: per finding, a test that fails because of it, then the fix; one no test can show (e.g. a leaked secret in a log) is fixed directly, with the reason. No failing test where one should be possible → no code change, reported **not reproduced**: record it as rejected, by a test. Then step 4 again, and review and challenge with only the lenses and reviewers that raised blocking findings. At most 2 rounds; blockers left → stop early (below).
+Any **blocking** findings → an **implement** fix round with only those: per finding, a test that fails because of it, then the fix; one no test can show (e.g. a leaked secret in a log) is fixed directly, with the reason. No failing test where one should be possible → no code change, reported **not reproduced**: record it as rejected, by a test. Then step 4 again, and review and challenge with only the lenses and reviewers that raised blocking findings, each told which findings the fix round fixed and which files it changed, to read those first: no fix round's code goes unreviewed. At most 2 fix rounds; blockers left in the review after the second → stop early (below).
 
 ## 6. Verify
 
 Spawn the **verify** role with the spec path and the work dir. It runs the checks (`run-checks.sh`) and maps each acceptance criterion to its tests; its Test Coverage and Verification Summary goes first in `summary.md`. FAIL → one **implement** fix round with the failures, then step 4 and verify again; still failing → stop early (below).
 Then run the `stages.before_handoff` agents.
 
-**Stopping early.** On remaining blockers or failed checks or verification: `move(ticket, blocked)`, `comment` the reason and work dir path; run step 8 (learn) so the stop reaches the record; remove the run's `active-run` lock and `baseline-failures`; run `test-guard.sh reset`; report to the user.
+**Stopping early.** On remaining blockers or failed checks or verification: `move(ticket, blocked)`, `comment` the reason and work dir path; stamp `run end`; run step 8 (learn) so the stop reaches the record; remove the run's `active-run` lock and `baseline-failures`; run `test-guard.sh reset`; report to the user.
 
 ## 7. Hand-off
 
-Write `summary.md`: what changed, verification evidence, open non-blocking findings, follow-ups. Run step 8 (learn) before any commit, so its guideline, record and eval-case changes join the code's commit and PR/MR. Then keep the change as handed off: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/outcomes.sh" snapshot <slug> --base <base>` (a local ref; later learn jobs tell people's edits and fixes from the agents' work), recorded in `run.json`. Then remove the run's `active-run` lock and `baseline-failures`, and run `test-guard.sh reset`.
+Write `summary.md`: what changed, verification evidence, open non-blocking findings, follow-ups. Stamp `run end` (the hand-off time). Run step 8 (learn) before any commit, so its guideline, record and eval-case changes join the code's commit and PR/MR. Then keep the change as handed off: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/outcomes.sh" snapshot <slug> --base <base>` (a local ref; later learn jobs tell people's edits and fixes from the agents' work), recorded in `run.json`. Then remove the run's `active-run` lock and `baseline-failures`, and run `test-guard.sh reset`.
 
 - Commit only if `conventions.auto_commit` is true, by the project's commit convention, ending each message with the trailer `Singularity-Run: <slug>`. Not committing: `summary.md` asks to keep that trailer in the commit message.
-- Draft PR/MR (tracker skill `open_change`, then `link`) only if `conventions.auto_pr` is true or the user asks; then `move(ticket, in_review)`, `comment` the link, record the PR/MR in `run.json`.
+- Draft PR/MR (tracker skill `open_change`, then `link`) only if `conventions.auto_pr` is true or the user asks; then `move(ticket, in_review)`, `comment` the link, record the PR/MR in `run.json`. Never merge it (`gh pr merge`, `glab mr merge`): merging waits for the human review.
 - Files tracker without a PR/MR: `move(ticket, in_review)` and `comment` the path to `summary.md` (and the commit, if any). No merge event closes a task file: ask the user whether to `move(ticket, done)`. Unattended: leave the task in review.
 
 ## 8. Learn
 
 Skip if `learning.enabled` is false. Otherwise spawn the **optimize** role once, job `learn` (model and effort per step 0), with:
 
-- this run: the work dir path and its `run.json`. A resumed pre-0.4.0 run (no `run.json`) → rebuild the record from the files: spec and plan drafts vs finals, `review.md` rounds with confirmed and rejected findings, the verifier's result in `summary.md`;
+- this run: the work dir path, its `run.json` and the `run-record.sh times` output. A resumed pre-0.4.0 run (no `run.json`) → rebuild the record from the files: spec and plan drafts vs finals, `review.md` rounds with confirmed and rejected findings, the verifier's result in `summary.md`;
 - queued **user corrections** (prompts correcting an agent, captured by the plugin's hooks in any session; `bash "${CLAUDE_PLUGIN_ROOT}/scripts/corrections.sh" count`; the learn job lists and clears them);
 - if enabled, **human reviews** of earlier runs finished since last learned from (**Learning from human reviews**).
 

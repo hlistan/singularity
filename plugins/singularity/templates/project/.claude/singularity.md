@@ -87,9 +87,10 @@ checks:
   #                                # yours (frozen and existing tests)
 
 stages:                     # project agents inserted into the shared pipeline
+  before_spec: []           # e.g. research the spec role can't do
   after_plan: []
   after_implement: []
-  before_handoff: []
+  before_handoff: []        # e.g. browser QA (qa-browser.md.example)
 
 # Guidelines change only for defects caused by a weak guideline, and for
 # user corrections: prompts, interrupts and rejected tool calls (hooks),

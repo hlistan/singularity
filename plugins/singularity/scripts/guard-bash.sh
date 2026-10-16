@@ -4,7 +4,8 @@
 #   - force-pushes to a protected branch (--force, --force-with-lease, -f, +refspec, --mirror, or --all
 #     with force), and deleting one (--delete, :branch);
 #   - skipping git hooks (--no-verify, `git commit -n`, `-c core.hooksPath=…`, HUSKY=0);
-#   - recursive deletes of / or of the home directory.
+#   - recursive deletes of / or of the home directory;
+#   - stopping processes by name (pkill, killall), which also stops the user's own copies: kill by pid.
 # It splits the command the way a shell does (quotes, escapes, here-documents, `;`, `&&`, `|`, subshells,
 # `bash -c` and `eval`) and checks the command words, so quoting a branch name doesn't get past it, and a
 # commit message, an echo or a here-document that mentions these commands doesn't trigger it.
@@ -191,6 +192,8 @@ function check(w, nw, depth,   i, t, prog, j, s, husky) {
   }
   if (prog == "git") check_git(w, nw, i + 1, husky)
   else if (prog == "rm") check_rm(w, nw, i + 1)
+  else if (prog == "pkill" || prog == "killall")
+    block(prog " stops every process with that name, the user's own included: stop the processes you started by their pid (kill <pid>)")
 }
 
 function protected_branch(b) {

@@ -86,6 +86,37 @@ expect_code 0
 if [ -z "$OUT" ]; then ok; else ko "printed something"; fi
 teardown
 
+test_case "--hash changes with every write, staging change and commit, and only then"
+setup
+printf 'one\nmore\n' > src/a.js
+printf 'x\n' > src/fresh.js
+run "$BASE" --hash
+expect_code 0
+case "$OUT" in *[!0-9a-f]*|'') ko "not a hash" ;; *) ok ;; esac
+H0="$OUT"
+run "$BASE" --hash
+[ "$OUT" = "$H0" ] && ok || ko "same state, different hash"
+printf 'y\n' > src/fresh.js
+run "$BASE" --hash
+[ "$OUT" != "$H0" ] && ok || ko "a new file's write kept the hash"
+H1="$OUT"
+printf 'one\nother\n' > src/a.js
+run "$BASE" --hash
+[ "$OUT" != "$H1" ] && ok || ko "a tracked file's write kept the hash"
+H2="$OUT"
+git add src/a.js
+run "$BASE" --hash
+[ "$OUT" != "$H2" ] && ok || ko "staging kept the hash"
+H3="$OUT"
+git commit -q -m wip
+run "$BASE" --hash
+[ "$OUT" != "$H3" ] && ok || ko "a commit kept the hash"
+H4="$OUT"
+mkdir -p build && printf 'artifact\n' > build/out.js
+run "$BASE" --hash
+[ "$OUT" = "$H4" ] && ok || ko "an ignored file changed the hash"
+teardown
+
 test_case "usage errors"
 setup
 run
@@ -94,6 +125,8 @@ run not-a-commit
 expect_code 2
 expect_out "unknown base"
 run "$BASE" --bogus
+expect_code 2
+run "$BASE" --stat --hash
 expect_code 2
 NOGIT="$(mktemp -d)"
 run "$BASE" --root "$NOGIT"

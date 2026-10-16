@@ -74,7 +74,7 @@ Every stage, gate, hook and script, with playable usage scenarios: open [`docs/a
 
 ## How to use
 
-Run everything below in a Claude Code session started from the project root; project choices live in one committed file, `.claude/singularity.md`.
+Run everything below in a Claude Code session started from the project root; project choices live in one committed file, `.claude/singularity.md`. A change that also touches sibling repositories: still start in the project root, and add them with `--add-dir ../<repo>` (a session started one level up loads neither the config, nor the project's agents and hooks, and the pipeline stops).
 
 ### Getting started
 
@@ -329,7 +329,7 @@ Each lens adds a reviewer, cost and time to every run. Only `review.blocking_len
 
 Plugin hooks:
 
-- command guard: blocks force-pushes to protected branches (main, master, develop, trunk, production, release branches, `conventions.default_branch`), skipping git hooks (`--no-verify`, `git commit -n`, `core.hooksPath`, `HUSKY=0`), and recursive deletes of `/` or home. Shell-style parsing: quoting doesn't evade it; commit messages naming these commands don't trip it. A seatbelt, not a security boundary (Claude Code's docs call argument-constraining Bash rules fragile): protect the default branch on your code host; enforce with the sandbox (`/sandbox`);
+- command guard: blocks force-pushes to protected branches (main, master, develop, trunk, production, release branches, `conventions.default_branch`), skipping git hooks (`--no-verify`, `git commit -n`, `core.hooksPath`, `HUSKY=0`), recursive deletes of `/` or home, and stopping processes by name (`pkill`, `killall`; kill by pid). Shell-style parsing: quoting doesn't evade it; commit messages naming these commands don't trip it. A seatbelt, not a security boundary (Claude Code's docs call argument-constraining Bash rules fragile): protect the default branch on your code host; enforce with the sandbox (`/sandbox`);
 - the stop gate (`checks.implement_gate`, `checks.stop_retries`) and frozen-test guard ([step 4](#implement-a-feature-from-a-tracker-ticket));
 - three correction-capture hooks, on `UserPromptSubmit`, `Stop` and `StopFailure` ([Teach the agents by correcting them](#teach-the-agents-by-correcting-them)).
 
@@ -364,7 +364,7 @@ Roles are fixed: spec, plan, implement, review, verify, optimize (its learn job 
 |---|---|---|---|
 | Replace a role | `roles.<role>.agent` | instead of the shared agent | `custom-implementer.md.example` |
 | Add a reviewer | `review.extra_reviewers` | in the review stage, next to the lenses | `review-domain.md.example` |
-| Add a pipeline step | `stages.after_plan`, `after_implement`, `before_handoff` | at that point in `/singularity:feature` | |
+| Add a pipeline step | `stages.before_spec`, `after_plan`, `after_implement`, `before_handoff` | at that point in `/singularity:feature` | `qa-browser.md.example` |
 | Add a workflow or command | `.claude/workflows/*.js`, `.claude/skills/<name>/SKILL.md` | when someone runs it | `dependency-upgrade.js.example` |
 
 Examples: [`plugins/singularity/templates/project/.claude/`](plugins/singularity/templates/project/.claude/); `init-project` copies them on request.
@@ -441,12 +441,13 @@ Runs only when listed. Gets the change's base and the spec; own model and effort
 
 ```yaml
 stages:
+  before_spec: [ux-researcher]           # research the spec role can't do (no web tools)
   after_plan: [threat-modeler]           # read-only checks of the plan
   after_implement: [migration-checker]   # runs before review, so its changes get reviewed
-  before_handoff: [release-notes-writer] # after review and verification
+  before_handoff: [qa-browser]           # after review and verification
 ```
 
-Agents run in list order; each gets the work dir path (spec, plan, later `review.md`). Blocking problem -> you choose: fix and rerun the agent, continue anyway, or stop. Scheduled or headless: stop, as on remaining review blockers. `before_handoff` runs after review and verification, so its changes go unreviewed: notes and documents only, or read-only.
+Agents run in list order; each gets the work dir path (spec, plan, later `review.md`); `before_spec` agents get the ticket, and the spec role gets what they wrote. Every agent named in the config must exist when the session starts: the pipeline stops rather than run a stage as another agent. Browser QA as part of the definition of done: a `before_handoff` agent with a browser MCP server's tools (`qa-browser.md.example`); the shared verifier has none. Blocking problem -> you choose: fix and rerun the agent, continue anyway, or stop. Scheduled or headless: stop, as on remaining review blockers. `before_handoff` runs after review and verification, so its changes go unreviewed: notes and documents only, or read-only.
 
 #### Add a workflow or a command
 

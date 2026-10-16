@@ -22,6 +22,7 @@ A project's `CLAUDE.md` or `.claude/singularity.md` may add or tighten rules and
 - **No hardcoding.** Thresholds, endpoints, feature flags, mock data and business rules go in configuration, environment variables, fixtures or strategy modules.
 - **Built for testability.** Inject dependencies (constructor or parameter injection, inversion of control) so test doubles replace external interfaces without patching internals.
 - Single responsibility, no duplication (DRY), strong typing, explicit error handling. Never swallow exceptions; validate input at trust boundaries.
+- **One rule, one place.** A rule decided in two places calls one function from both: an action and the listing that shows whether it's possible (every input the action refuses shows there as refused); an action and the one that undoes it (undo, restore, put back accept input by the same rule). Tests run both on each state the rule accepts and refuses.
 - Existing patterns first; stay within the approved plan (no drive-by refactors).
 - **Breaking changes** per `conventions.breaking_changes`. `allowed`: a refactor improving maintainability, testability or scalability may drop compatibility with legacy code or deprecated schemas if tests cover client contracts. `forbidden` (also when unset): public contracts and schemas stay compatible unless the spec says otherwise.
 - Clear names over comments; comments say *why*, not *what*.
@@ -33,11 +34,16 @@ A project's `CLAUDE.md` or `.claude/singularity.md` may add or tighten rules and
 - **Boundary and failure-mode coverage.** Cover the happy path; boundary conditions; malformed, empty and null inputs; timeout and retry paths; each explicit exception state.
 - **Deterministic.** No hardcoded sleeps, unmocked clock, unseeded randomness or real network; independent, order-insensitive tests.
 - **Semantic assertions.** The specific expected value or state, not a broad boolean; behaviour, not implementation details.
+- **Expected values live in the test.** A set, allow-list or mapping is compared with a literal list in the test, never with the code's own constant: iterating it passes whatever it holds.
 - Tests a refactor obsoletes: update or replace in the same change, never delete to get green.
 
 ## Verification summary
 
 Every implemented change ends with a short **Test Coverage and Verification Summary**: per acceptance criterion or defect, its happy-path, boundary and failure-mode tests, the commands run, results.
+
+## Processes
+
+- Stop only processes you started, by their pid (`kill <pid>`); never by name (`pkill`, `killall`): the user may be running the same program.
 
 ## Git
 

@@ -25,7 +25,7 @@ Per plan step (small change without a plan: per acceptance criterion):
 3. Smallest change that makes them pass.
 4. Lint/typecheck the changed files; run the targeted tests.
 5. Remove the tests, fixtures and workarounds the plan lists as obsolete.
-6. Tick the step in plan.md (`- [x]`); add one line per deviation.
+6. Tick the step in plan.md (`- [x]`) only when every item it lists is done; an item left out -> leave the step unticked and add a deviation line under it naming the item and why. One line per other deviation.
 
 Plan wrong or incomplete, or a frozen test wrong -> stop and report; never improvise a design or edit the test. A clear stop beats a pass bought by changing what the test checks.
 
