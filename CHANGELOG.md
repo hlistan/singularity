@@ -6,6 +6,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-16
+
 ### Added
 
 - **User corrections drive the guidelines.** Two plugin hooks capture prompts in which the user corrects an agent: `UserPromptSubmit` queues a prompt that starts with `correction:` or `defect:`, or matches a phrase in `scripts/correction-patterns.txt` (a project adds its own, in any language, in `.claude/singularity/correction-patterns.txt`), paired with the agent's last message, which the `Stop` hook keeps. The queue is `<work_dir>/corrections/`, and it keeps itself out of git, since prompts can hold secrets. The learn job turns the corrections into guidelines and clears the queue. `/singularity:feature` hands it the queue at every run; outside the pipeline, a new session says when corrections are waiting, and the optimizer picks the learn job when nothing more urgent is due. `learning.corrections: false` turns the capture off. `scripts/corrections.sh` manages the queue.
@@ -146,7 +148,8 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 - Projects follow the `stable` branch (`ref: stable` in the `init-project` settings template), so they only receive released versions.
 - Run digests record the `plugin_version` each run used, so the optimizer can compare releases.
 
-[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.5.0...HEAD
+[Unreleased]: https://github.com/hlistan/singularity/compare/singularity--v0.6.0...HEAD
+[0.6.0]: https://github.com/hlistan/singularity/compare/singularity--v0.5.0...singularity--v0.6.0
 [0.5.0]: https://github.com/hlistan/singularity/compare/singularity--v0.4.0...singularity--v0.5.0
 [0.4.0]: https://github.com/hlistan/singularity/compare/singularity--v0.3.0...singularity--v0.4.0
 [0.3.0]: https://github.com/hlistan/singularity/compare/singularity--v0.2.0...singularity--v0.3.0
