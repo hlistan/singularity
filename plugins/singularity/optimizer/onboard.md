@@ -26,7 +26,7 @@ Work in your own worktree on a `singularity/onboard-<YYYY-MM-DD>` branch ("Your 
 
 **Goals first.** `goals.md` says `Status: confirmed` -> don't redraft; propose changes as a gate diff. Otherwise draft `.claude/singularity/goals.md` from the Value answers: template sections, under about 40 lines, `Status: draft`. Each statement cites (in `onboarding.md`) something the team wrote (README, roadmap, tickets); gaps stay `TODO` and become gate questions. The rest of the context serves them: rank the risk map by harm to users and goals.
 
-Write only what an agent can't quickly learn from the code or would get wrong untold: exact commands and tools, conventions that differ from what the code suggests, domain rules and risks, what not to touch. No repository overviews or directory tours: they didn't help agents navigate, and LLM-written context files lowered task success and raised cost about a fifth (Gloaguen et al., 2026, in `docs/self-optimization.md`).
+Write only what an agent can't quickly learn from the code or would get wrong untold: exact commands and tools, conventions that differ from what the code suggests, domain rules and risks, what not to touch. No repository overviews or directory tours: they didn't help agents navigate, and LLM-written context files lowered task success and raised cost about a fifth (Gloaguen et al., 2026, in <https://github.com/hlistan/singularity/blob/main/docs/self-optimization.md>).
 
 One home per fact: where its agent reads.
 
@@ -55,15 +55,15 @@ Rules:
 
 - **Commands** (tier 1): run every command `init-project` marked failing or left `TODO`, plus `test_one` on a real test file; fix them.
 - **Review** (tier 2): `review.extra_lenses` for risks the four shared lenses don't name (e.g. performance for data-heavy code); `review.extra_reviewers` only for domain rules too long for a lens description (start from `review-domain.md.example` in `<plugin root>/templates/project/.claude/agents/`).
-- **Stages** (tier 2): a project agent for a check no command covers, e.g. a migration checker `after_implement` if there are migrations.
+- **Stages** (tier 2): a project agent for a check no command covers, e.g. a migration checker `after_implement` if there are migrations; a browser QA agent `before_handoff` if the definition of done includes trying the change in a browser (the shared verifier has no browser tools; start from `qa-browser.md.example`); a research agent `before_spec` if specs here must rest on outside research (the spec role has no web tools).
 - **Roles** (tier 2): a model or effort override only with a reason, e.g. Fable not allowed, or a provider alias resolving to an older model (check with `/model`).
 - **Hooks** (tier 2): `post-edit.sh` with the project's formatter; `verify.sh` for checks the commands don't cover (e.g. contract tests).
 
-Project agents' model and effort: `docs/models-and-effort.md` in the singularity repository. Each tier-2 change is a proposal with a contract, shipped as a **canary** (no runs yet): name the metric it should move, note there's no baseline yet, check it after 10 runs.
+Project agents' model and effort: "Choosing model and effort for a custom agent" in <https://github.com/hlistan/singularity/blob/main/docs/models-and-effort.md> (WebFetch; not shipped with the plugin). Each tier-2 change is a proposal with a contract, shipped as a **canary** (no runs yet): name the metric it should move, note there's no baseline yet, check it after 10 runs.
 
 ## 4. Baseline eval cases (optional)
 
-Review changes validate only against eval cases; a new project has none. Survey found merged PRs/MRs where a human reviewer caught a real defect -> offer at the gate to turn up to 10 into eval cases, as the feature pipeline does ("Learning from human reviews" in `<plugin root>/skills/feature/SKILL.md`; case format in `learn.md`): the change as first reviewed, its base, the defect to catch. Every 5th case is `holdout: true`.
+Review changes validate only against eval cases; a new project has none. Survey found merged PRs/MRs where a human reviewer caught a real defect, or fix commits for defects QA or users found after merge (the case is the merge that brought the defect in, cut to the files that hold it) -> offer at the gate to turn up to 10 into eval cases, as the feature pipeline does ("Learning from human reviews" in `<plugin root>/skills/feature/SKILL.md`; case format in `learn.md`): the change as first reviewed, its base, the defect to catch. Every 5th case is `holdout: true`.
 
 ## 5. Gate
 

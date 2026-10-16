@@ -165,6 +165,19 @@ allowed 'rm ~/notes.txt'
 allowed 'rm -rf /home/tester-other'
 teardown
 
+test_case "stopping processes by name is blocked, by pid allowed"
+setup main
+blocked 'pkill -x MyApp'
+blocked 'pkill -f "node server.js"'
+blocked 'killall Simulator'
+blocked '/usr/bin/pkill node'
+blocked 'npm run build && pkill -9 vite'
+allowed 'kill 12345'
+allowed 'kill -TERM "$pid"'
+allowed 'pgrep -x MyApp'
+allowed 'echo "never run pkill here"'
+teardown
+
 test_case "input without a command, and odd input, is allowed"
 setup feature/x
 OUT="$(printf '%s' '{"tool_name":"Bash","tool_input":{}}' | "$SH" "$SCRIPT" 2>&1)"; CODE=$?

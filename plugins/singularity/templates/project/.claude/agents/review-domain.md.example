@@ -8,11 +8,13 @@ effort: high
 
 # Domain reviewer
 
-Review the diff (`git diff <base>...HEAD`) only for violations of these
-project rules:
+Review the whole change in the `change.diff` the pipeline gives you (new,
+uncommitted files included; `git diff` alone leaves them out) only for
+violations of these project rules:
 
 - TODO: rule 1, e.g. all money amounts use the Money type, never float.
 - TODO: rule 2.
 
 Report findings with severity (blocking | should-fix | nit), file:line,
-problem, evidence, fix. Only report what you can prove.
+problem, evidence, fix. Only report what you can prove. Change no file: no
+code generators, formatters or builds.

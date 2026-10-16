@@ -19,7 +19,7 @@ Drift from what users need (`goals.md`), e.g. a spec missing a team constraint -
 | `<work_dir>/corrections/` (default `.agentic/work/corrections/`) | you | user corrections the hooks captured, one file each; never committed (prompts can hold secrets) |
 | `refs/singularity/handoff/<slug>` | `outcomes.sh` | the run's change as handed off (local git ref), to tell people's later edits from the agents' work |
 
-Bash only for `git diff`, `git status`, `git log`, `git show`, `diff`, `date`, the guideline check, `bash "<plugin root>/scripts/check-guidelines.sh"`, the correction queue, `bash "<plugin root>/scripts/corrections.sh" list` and `clear <record>...`, and later fixes, `bash "<plugin root>/scripts/outcomes.sh" later-fixes`.
+Bash only for `git diff`, `git status`, `git log`, `git show`, `diff`, `date`, the guideline check, `bash "<plugin root>/scripts/check-guidelines.sh"`, the correction queue, `bash "<plugin root>/scripts/corrections.sh" list` and `clear <record>...`, later fixes, `bash "<plugin root>/scripts/outcomes.sh" later-fixes`, and the run's times, `bash "<plugin root>/scripts/run-record.sh" times <work dir>`.
 
 **A write refused** (Claude Code asks before every write under `.claude/` and refuses it when nobody can answer, as in a headless run outside auto mode) -> stop; don't retry it another way (shell redirection, a script); clear no correction record; return the exact changes, ready to apply.
 
@@ -136,13 +136,14 @@ After a pipeline run, from its run record:
 |---|---|
 | `branch`, `change` | branch and PR/MR (if opened), so a later run finds it |
 | `kind`, `goal` | feature, defect or refactoring; the `goals.md` goal the spec says the work serves, or `maintenance` |
-| `lead_s`, `active_s`, `gate_wait_s`, `fix_rounds` | from the run record, never estimated: start to hand-off; stage working time; wait per gate; fix rounds |
+| `lead_s`, `active_s`, `gate_wait_s`, `fix_rounds` | from `run-record.sh times` (the run's `clock.log`), else the run record; never estimated or computed by hand: start to hand-off; stage working time; wait per gate; fix rounds. `times` exits 1 (stamps out of order or unmatched) -> leave out the times it names, and add the problem to `deviations` |
 | `stopped`, `resumed` | a run stopped early gets a digest too (`stopped`, the reason); resumed, another when it ends (`resumed: true`) |
 | `applied` | per role, the guideline ids it reported deciding a choice (run record) |
 | `findings` | confirmed **and** rejected findings (`confirmed:false`: reviewer at fault): a short reusable `category`, the stage at fault, the file `path`, `cause`, `action` (`added`, `changed`, `removed`, `moved`, `check-proposed`, `pending` or `recorded`) |
 | `defects` | the run's other defects, same form, plus `source`: `checks` (step 4 failure), `stop-gate` (the implementer stopped while checks failed), `verify` (verification failure) or `later-fix` (an earlier run's defect this run fixes) |
 | per entry: `guideline`, `covered_by`, `cites`, `confirms` | guideline added or changed for it; existing guideline it was ignored against; guideline the finding cited; earlier `pending` entries it confirms (run `slug` or correction `date`) |
 | `guidelines` | every guideline added, changed or removed: their history, for optimizations to judge whether each works |
+| `deviations`, `incidents` | from the run record: where the run left the pipeline's protocol, and read-only roles that changed the checkout; optimizations count them |
 | `proposals` | config, agent or flow changes the evidence suggests, for an optimization to weigh; not made here |
 
 Reuse existing category names in runs.jsonl (optimizations count them). Omit fields you don't have; never invent numbers.
@@ -195,9 +196,9 @@ With `learning.pr_reviews`, the pipeline gives you finished PRs/MRs of earlier r
 
 ## Regression eval cases from defects the review missed
 
-Every real defect that got past review (later fix, human review comment, a person's edit fixing a defect, user correction about reviewed code) becomes an eval case, so optimizations can prove fixes. Create one when the reviewed change (a commit or PR/MR head) can be rebuilt against its base:
+Every real defect that got past review (later fix, a defect QA or a user found after merge, human review comment, a person's edit fixing a defect, user correction about reviewed code) becomes an eval case, so optimizations can prove fixes. Create one when the reviewed change (a commit or PR/MR head) can be rebuilt against its base:
 
-- `.claude/singularity/evals/<id>/change.patch`: `git diff <base> <reviewed-commit>`, the change as reviewed (before the fix).
+- `.claude/singularity/evals/<id>/change.patch`: `git diff <base> <reviewed-commit>`, the change as reviewed (before the fix); for a large merge, cut to the files that hold the defect (`git diff <base> <reviewed-commit> -- <files>`).
 - `.claude/singularity/evals/<id>/case.md`, in this format:
 
 ```yaml
@@ -210,11 +211,17 @@ location: src/api/orders.ts:42
 holdout: false
 source: "later fix in abc-130-orders, 2026-10-20"
 ---
+
+# Orders endpoint leaks other users' orders
+
 Short note on why it matters.
 ```
 
+- The body starts with a `#` heading (markdownlint's default MD041 fails without one).
+
 - Every 5th case `holdout: true` (count existing cases): optimizations' held-out set.
 - Finding rejected by the user or team -> optional `precision` case, same way.
+- While the project has fewer than 10 cases: a confirmed blocking finding that a failing test reproduced -> a `recall` case too (`source: "finding in <slug>"`), base and change from the run, so a new project gets its first cases.
 - Never edit or delete existing cases; no second case for a defect an existing case's `source` names.
 
 ## Return

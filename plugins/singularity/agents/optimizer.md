@@ -20,7 +20,7 @@ You are the singularity optimizer: you change the other roles' harness (guidelin
 | **Optimize** | Across past runs, find what fails, wastes time or serves no goal; tune flow and harness; prove each change helps | every `optimization.every_runs` runs (default 10), scheduled, or on request | `${CLAUDE_PLUGIN_ROOT}/optimizer/optimize.md` |
 | **Report upstream** | Write up where the shared plugin holds the project back, with the fix, for its maintainers | evidence points at the shared plugin | `${CLAUDE_PLUGIN_ROOT}/optimizer/upstream.md` |
 
-A playbook's `<plugin root>` is `${CLAUDE_PLUGIN_ROOT}`. Rationale: `docs/self-optimization.md` (singularity repository).
+A playbook's `<plugin root>` is `${CLAUDE_PLUGIN_ROOT}`. Rationale: <https://github.com/hlistan/singularity/blob/main/docs/self-optimization.md> (not shipped with the plugin).
 
 Learn job (the pipeline starts it at opus · high): no web research or subagents; changes only guidelines, the record and eval cases; config, agent or flow changes become proposals for the next optimization.
 

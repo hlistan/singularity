@@ -6,6 +6,34 @@ Add a line under `[Unreleased]` with every change to the plugin. `scripts/releas
 
 ## [Unreleased]
 
+### Added
+
+- **Times from the clock, drafts as written.** `scripts/run-record.sh stamp` writes each stage, project stage, fix round and gate's start and end, from the clock, to the run's `clock.log`; `times` turns it into `lead_s`, `active_s` (overlaps counted once), `gate_wait_s` and per-stage seconds, and exits 1 on stamps out of order or unmatched, as hand-written ones are. `draft` keeps `spec.draft.md` and `plan.draft.md` as the agents wrote them, read-only, so a later revision can't overwrite them. The learn job takes the digest's times from it and never computes them by hand. `tests/run-record.test.sh` runs in CI.
+- **Read-only roles are checked.** `change-diff.sh --hash` prints a hash of the checkout's state; the pipeline takes it before and after each review and challenge batch, in every repository the change touches, and a difference (a reviewer that ran a code generator, say) is an incident: recorded, shown to the user, never restored without them. The reviewer's Bash rule names what it must not run.
+- **`stages.before_spec`**: project agents that run before the spec, e.g. research the spec role can't do without web tools; the spec role gets what they wrote. A gate answer that needs such work runs it and shows the gate again.
+- `qa-browser.md.example`: a `before_handoff` agent that tries each acceptance criterion in a browser through a browser MCP server, for projects whose definition of done includes browser QA (the shared verifier has no browser tools). Onboarding proposes it, and a `before_spec` research agent, where they fit.
+- The run record and digest keep `deviations` from the protocol and `incidents`.
+- Plugin eval case `review-recall-ungated-caller`: a change gates a capability at one entry point while a job outside the diff still reaches it.
+- **One rule, one place** (engineering standards): an action and the listing that shows whether it's possible, or an action and its undo, call one function, tested on each state it accepts and refuses; the correctness lens looks for such rules drifting apart. Tests compare a set or allow-list with a literal list, never the code's own constant.
+- The command guard blocks stopping processes by name (`pkill`, `killall`), which also stops the user's own copies; the standards say to stop only the processes you started, by pid.
+- Eval cases also come from defects QA or users found after merge (learn job and onboarding; a large merge's patch cut to the files holding the defect), and, while a project has fewer than 10 cases, from confirmed blocking findings a failing test reproduced.
+
+### Changed
+
+- `/singularity:feature` stops at the start when the session isn't in the project root (a session started a level up, to reach sibling repositories, loads neither the config nor the project's agents and hooks) or when an agent the config names isn't available, instead of running that stage as a general-purpose agent. Changes spanning sibling repositories start in the project root with `--add-dir`.
+- The orchestrator never changes a repository's index, stash or history to inspect a change (`git add -N` and the like); `change-diff.sh` covers new files.
+- Every fix round's code is reviewed: the next review round reads the findings fixed and the files changed first; the cap is 2 fix rounds, after which remaining blockers stop the run. The orchestrator never merges the PR/MR.
+- Project stages return their reports in their final message; the orchestrator writes the file and takes counts from the items listed.
+- The implementer ticks a plan step only when every item it lists is done, and names an item left out as a deviation under the step. The spec writer proposes the stricter default for an open question touching a hard rule or constraint (privacy, data leaving the system, security). Reviewers cite lines as the working-tree file numbers them, not diff positions.
+- Challenges: one challenger per blocking finding, never batched; findings below blocking aren't challenged. Each challenger also says whether the proposed fix holds.
+- The security lens searches beyond the diff for every other path to a capability the change gates (entry points, toggles, stored preferences, background jobs). Reviewers check a fix against every value of the state it reads before raising it.
+
+### Fixed
+
+- `optimizer/onboard.md` and the optimizer's definition pointed to `docs/models-and-effort.md` and `docs/self-optimization.md` as if shipped with the plugin; they're only in the repository, so an installed optimizer couldn't read them. They now link to the repository.
+- The eval-case format in `learn.md` had no heading in the body, so every case failed markdownlint's default MD041 in projects that lint Markdown with the defaults; the format now starts the note with a heading.
+- `review-domain.md.example` reviewed `git diff <base>...HEAD`, which leaves out uncommitted new files; it now reads the pipeline's `change.diff`.
+
 ## [0.6.0] - 2026-10-16
 
 ### Added

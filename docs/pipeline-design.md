@@ -59,7 +59,7 @@ Why `/singularity:feature` works this way, beyond roles and models (`docs/models
 
 ## The command guard is a seatbelt
 
-- `scripts/guard-bash.sh` blocks force-pushes to protected branches, skipping git hooks, and recursive deletes of `/` or home. Shell-style splitting: quoting doesn't evade it, commit messages don't trip it. An aid against mistakes, not enforcement.
+- `scripts/guard-bash.sh` blocks force-pushes to protected branches, skipping git hooks, recursive deletes of `/` or home, and stopping processes by name (`pkill`, `killall`). Shell-style splitting: quoting doesn't evade it, commit messages don't trip it. An aid against mistakes, not enforcement.
 
 | Finding | Source | In singularity |
 |---|---|---|
