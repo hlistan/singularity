@@ -10,21 +10,22 @@ Answer each question below. Large repository -> one read-only Explore subagent p
 
 | Question | Where to look |
 |---|---|
-| **Value**: the users and what they rely on; the team's current aim and how it will know; what wins when speed, quality, cost and scope conflict; constraints on the work | README, product docs, roadmap, milestones, the tracker's open epics and recent tickets (`get`, read-only), release notes, incident and support notes |
+| **Value**: the users and what they rely on; the team's current aim and the KPIs that show it (metric, how it is measured, current value, target, date); what wins when speed, quality, cost and scope conflict; constraints on the work | README, product docs, roadmap, milestones, the tracker's open epics and recent tickets (`get`, read-only), release notes, incident and support notes |
 | **Purpose**: what the project does, main components | README, docs, package metadata, entry points |
 | **Architecture**: modules and their interactions, where business logic lives, data stores, external services, generated and vendored code | directory layout, entry points, dependency manifests, infrastructure files |
 | **Build and test**: real commands; test layout, frameworks, fixtures, factories; running one test; services tests need; slow or flaky suites; what CI checks | package scripts, Makefile, CI config, test directories, compose files |
 | **Conventions** differing from or adding to the shared standards (`<plugin root>/skills/engineering-standards/SKILL.md`): layering, errors, dependency injection, naming, migrations, feature flags, API versioning | the code, linter config, CONTRIBUTING, ADRs |
 | **Risk map**: costliest defect spots (authorization, money, personal data, concurrency, migrations, public APIs, client contracts); domain rules a reviewer must know | the code, ADRs, incident and postmortem notes |
+| **Team fit**: which library entries' signals the project shows (a web UI and a browser MCP server, migrations on a live database, specs resting on outside facts) | `<plugin root>/library/README.md` catalog against the answers above; `.mcp.json`, the Definition of Done in CONTRIBUTING or the PR template |
 | **What the team corrects**: recurring review comments and rework | the last 20 merged PRs/MRs (tracker skill `list_changes(merged, 20)`, then `review_comments` for each; read-only); `git log` fix and revert commits |
 
-Record only what the repository shows, with its paths; anything unestablished is an **open question** for the gate, not a guess. Save findings (with refs) and open questions to `onboarding.md` in the run directory as you go, for resuming.
+Record only what the repository shows, with its paths. Settle what evidence can (the `autonomy` skill: outside facts by web research); only what the team alone knows (its goals, KPI targets, trade-offs, constraints) is an **open question** for the gate, never a guess. Save findings (with refs) and open questions to `onboarding.md` in the run directory as you go, for resuming.
 
 Work in your own worktree on a `singularity/onboard-<YYYY-MM-DD>` branch ("Your own worktree" in the agent definition); setup not yet committed on the default branch (as when `/singularity:init-project` starts you) -> work in the user's checkout.
 
 ## 2. Write the context (tier 1)
 
-**Goals first.** `goals.md` says `Status: confirmed` -> don't redraft; propose changes as a gate diff. Otherwise draft `.claude/singularity/goals.md` from the Value answers: template sections, under about 40 lines, `Status: draft`. Each statement cites (in `onboarding.md`) something the team wrote (README, roadmap, tickets); gaps stay `TODO` and become gate questions. The rest of the context serves them: rank the risk map by harm to users and goals.
+**Goals first.** `goals.md` says `Status: confirmed` -> don't redraft; propose changes as a gate diff. Otherwise draft `.claude/singularity/goals.md` from the Value answers: template sections, a KPI table row per goal, under about 40 lines, `Status: draft`. Each statement cites (in `onboarding.md`) something the team wrote (README, roadmap, tickets); gaps stay `TODO` and become gate questions. The rest of the context serves them: rank the risk map by harm to users and goals.
 
 Write only what an agent can't quickly learn from the code or would get wrong untold: exact commands and tools, conventions that differ from what the code suggests, domain rules and risks, what not to touch. No repository overviews or directory tours: they didn't help agents navigate, and LLM-written context files lowered task success and raised cost about a fifth (Gloaguen et al., 2026, in <https://github.com/hlistan/singularity/blob/main/docs/self-optimization.md>).
 
@@ -54,8 +55,9 @@ Rules:
 ## 3. Fit the setup
 
 - **Commands** (tier 1): run every command `init-project` marked failing or left `TODO`, plus `test_one` on a real test file; fix them.
+- **Select the team** (tier 2): every entry in the library catalog (`<plugin root>/library/README.md`) whose signals the survey shows, with that evidence: library agents into `stages` or `review.extra_reviewers` (`singularity:<name>`), library skills into `skills` under the roles and agents the catalog names. A need no entry covers -> a project agent or skill in `.claude/` (examples in `<plugin root>/templates/project/.claude/`); generic enough for any project -> also an upstream report proposing it for the library (`upstream.md`).
 - **Review** (tier 2): `review.extra_lenses` for risks the four shared lenses don't name (e.g. performance for data-heavy code); `review.extra_reviewers` only for domain rules too long for a lens description (start from `review-domain.md.example` in `<plugin root>/templates/project/.claude/agents/`).
-- **Stages** (tier 2): a project agent for a check no command covers, e.g. a migration checker `after_implement` if there are migrations; a browser QA agent `before_handoff` if the definition of done includes trying the change in a browser (the shared verifier has no browser tools; start from `qa-browser.md.example`); a research agent `before_spec` if specs here must rest on outside research (the spec role has no web tools).
+- **Stages** (tier 2): an agent for a check no command covers: `singularity:qa-browser` `before_handoff` if the definition of done includes trying the change in a browser (the shared verifier has no browser tools; write its setup, the start command, URL and test accounts, into `guidelines/verify.md`); `singularity:researcher` `before_spec` if specs here rest on more outside research than the spec role's own; a project agent otherwise, e.g. a migration checker `after_implement`.
 - **Roles** (tier 2): a model or effort override only with a reason, e.g. Fable not allowed, or a provider alias resolving to an older model (check with `/model`).
 - **Hooks** (tier 2): `post-edit.sh` with the project's formatter; `verify.sh` for checks the commands don't cover (e.g. contract tests).
 
@@ -72,7 +74,7 @@ First run `bash "<plugin root>/scripts/check-guidelines.sh"` and fix each findin
 - the draft goals, to correct and confirm;
 - the context written: each file, guidelines added, `CLAUDE.md` sections filled, the guideline check's report;
 - the open questions;
-- the tier-2 proposals as a table: id, change, why (survey evidence), what it should move, check after;
+- the tier-2 proposals as a table, the team selected from the library first: id, change, why (survey evidence), what it should move, check after;
 - the eval-case offer, if any.
 
 Add the proposals to `onboarding.md` first, then ask the user to answer the questions, correct and confirm the goals, and choose proposals. Apply the answers and record them in `onboarding.md`; goals confirmed -> set `Status: confirmed <date>`; implement the chosen proposals.

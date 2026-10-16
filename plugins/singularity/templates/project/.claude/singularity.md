@@ -55,6 +55,16 @@ code_host:
   type: github              # github | gitlab | none
   # gitlab: { host: gitlab.com, project: group/repo }
 
+# Agents decide what evidence settles (the code, the goals, the guidelines,
+# web research) and record each decision with its grounding. A person is
+# asked only at the design gate and gets the finished change at hand-off.
+gates:
+  # auto: stop at the design gate only for decisions the team must make.
+  # always: show every spec and plan. never: go on the agents' advice.
+  design: auto
+autonomy:
+  web_research: true        # false: decide from the repository only
+
 # Rebind a role to another agent, or change its model or effort. Leave a role
 # out to keep the shared default:
 #   spec, plan: opus high            implement: sonnet medium (fixes: high)
@@ -66,6 +76,13 @@ code_host:
 roles: {}
   # implement: { agent: android-implementer }   # agent in .claude/agents/
   # review:    { model: opus, effort: high }    # if Fable isn't enabled
+
+# Skills each agent reads first, by role or agent name. singularity:<name>
+# is a library skill (the plugin's library/README.md lists them); another
+# name is a project skill in .claude/skills/<name>/SKILL.md.
+skills: {}
+  # implement: [singularity:zero-downtime-migrations]
+  # qa-browser: [singularity:accessibility]
 
 review:
   # The shared lenses. Drop one here only with a reason.
@@ -86,11 +103,11 @@ checks:
   # test_pattern: "(^|/)tests/"   # paths of tests, if the defaults miss
   #                                # yours (frozen and existing tests)
 
-stages:                     # project agents inserted into the shared pipeline
-  before_spec: []           # e.g. research the spec role can't do
+stages:                     # library or project agents in the pipeline
+  before_spec: []           # e.g. singularity:researcher
   after_plan: []
   after_implement: []
-  before_handoff: []        # e.g. browser QA (qa-browser.md.example)
+  before_handoff: []        # e.g. singularity:qa-browser
 
 # Guidelines change only for defects caused by a weak guideline, and for
 # user corrections: prompts, interrupts and rejected tool calls (hooks),
@@ -104,8 +121,9 @@ learning:
   pr_reviews: false         # true: learn from PR/MR comments and edits
 
 optimization:
-  # Offer an optimizer run after this many pipeline runs; 0: never.
+  # Run the optimizer after this many pipeline runs; 0: never.
   every_runs: 10
+  auto_start: true          # false: only say it is due
   # Let the optimizer check new Claude Code features, models and research.
   web_scan: true
   max_eval_cost_usd: 10     # spending ceiling for validation runs

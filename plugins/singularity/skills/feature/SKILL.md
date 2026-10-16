@@ -1,13 +1,15 @@
 ---
 name: feature
-description: Run the team's end-to-end pipeline for a ticket (spec, plan, implement, review, verify, learn) with human approval gates. Use only when the user runs /singularity:feature or explicitly asks for the singularity pipeline.
-argument-hint: <ticket id, URL or description | next> [no-gates] [small | full]
+description: Run the team's end-to-end pipeline for a ticket (spec, plan, implement, review, verify, learn) autonomously, stopping for a person only for decisions evidence can't settle and at hand-off. Use only when the user runs /singularity:feature or explicitly asks for the singularity pipeline.
+argument-hint: <ticket id, URL or description | next> [gate | no-gates] [small | full]
 disable-model-invocation: true
 ---
 
 # Feature pipeline
 
 You are the orchestrator: delegate each stage to the agent bound to its **role**; never write the spec, plan or code yourself. Stages hand work over **through files** in the work dir, not your summaries.
+
+**Autonomous by default.** A person is needed at two points only: the **design gate** (step 2), for decisions evidence can't settle, and the **hand-off** (step 7), when the change is done, verified and ready to deploy. Everything between, decide and continue, by the `autonomy` skill (`${CLAUDE_PLUGIN_ROOT}/skills/autonomy/SKILL.md`; read it now): your own choices too, never a question the code, the config or the record answers. Each time the run stops for a person (a gate shown, a question, an early stop), record an **intervention** in `run.json`.
 
 Request: $ARGUMENTS
 
@@ -21,7 +23,7 @@ The config `.claude/singularity.md` usually arrives through CLAUDE.md; else read
 
 **Every named agent exists.** Each agent the config names (`roles.<role>.agent`, `review.extra_reviewers`, the `stages` lists) must be among the subagent types you can spawn. Missing → stop and name each; a project agent is `.claude/agents/<name>.md`, loaded when the session starts. Never run a role, stage or reviewer as general-purpose or as another agent in its place.
 
-**Lesson files from before 0.5.0.** `learning.dir` (default `.claude/singularity/experience/`) still holds `project.md` or another role's lesson file, or `CLAUDE.md` still imports `experience/project.md`: an old lesson log, unread by the roles. Before anything else, tell the user; unless unattended, let them choose: migrate now or stop. Migrate: spawn the **optimize** role with `migrate, in this checkout, for /singularity:feature`; it turns the lessons into guidelines here, uncommitted, in this run's change. Note it in `summary.md`.
+**Lesson files from before 0.5.0.** `learning.dir` (default `.claude/singularity/experience/`) still holds `project.md` or another role's lesson file, or `CLAUDE.md` still imports `experience/project.md`: an old lesson log, unread by the roles. Migrate before anything else: spawn the **optimize** role with `migrate, in this checkout, for /singularity:feature`; it turns the lessons into guidelines here, uncommitted, in this run's change. Tell the user and note it in `summary.md`.
 
 **Role bindings.** Agent per role: `roles.<role>.agent`, else the default:
 
@@ -38,11 +40,13 @@ The learn step (step 8) is the optimize role's **learn** job: same agent, own mo
 
 Pass `model` and `effort` **only** where the config sets them for that role, else the agent definitions' defaults apply. Exceptions: the **learn** job takes them from `roles.learn` where set, else `model: opus`, `effort: high`. **Fix rounds** of the implement role (failed checks, step 4; blocking findings, step 5; failed verification, step 6) pass `effort: high` unless `roles.implement.effort` is set.
 
-**Unattended runs.** Scheduled or headless: nobody can answer questions. `no-gates` only skips the two approval gates; it doesn't make a run unattended. Claude Code asks before every write under `.claude/`; headless outside auto mode it refuses them, so the learn step returns its changes unwritten: say so in the report.
+**Skills per agent.** The config's `skills` map lists, under a role or an agent's name, the library and project skills that agent reads first: `singularity:<name>` is `${CLAUDE_PLUGIN_ROOT}/library/skills/<name>/SKILL.md`, another name `.claude/skills/<name>/SKILL.md`. Every listed file must exist; missing -> stop and name it, as for agents. Each spawn of an agent ends its prompt with `Read these skills first and follow them: <paths>`, the files under its role and under its agent name (without the `singularity:` prefix for library agents); record them per agent in `run.json`.
+
+**Unattended runs.** Scheduled or headless: nobody can answer. Decisions needed at the design gate -> stop early (step 6) with them in the report, unless the gate is set to `never`. `no-gates` only skips the design gate; it doesn't make a run unattended. Claude Code asks before every write under `.claude/`; headless outside auto mode it refuses them, so the learn step returns its changes unwritten: say so in the report.
 
 **Mechanical steps.** Scripts decide pass and fail by exit code, not output: `${CLAUDE_PLUGIN_ROOT}/scripts/run-checks.sh`, `test-guard.sh`, `change-diff.sh`, `run-record.sh` and `corrections.sh`, all in that folder. Run them with `bash` and the full path as written. Never change a repository's index, stash or history to inspect a change (no `git add -N`, `git stash`, `git reset`): `change-diff.sh <base>` (`--stat`, `--root <repo>`) already includes uncommitted and new files.
 
-**Times come from the clock.** `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" stamp <work dir> <span> start|end` at the moment each span starts and ends: `run` (start to hand-off or early stop), each stage (`spec`, `plan`, `implement`, `checks`, `review`, `verify`, `learn`), each project stage (its agent's name), each fix round (`fix-1`, `fix-2`, …) and each gate (`gate-spec`, `gate-plan`: shown to approved). Never type, edit or estimate a time; a span not stamped stays out of the record. `run-record.sh times <work dir>` gives the durations; exit 1 names stamps out of order or unmatched.
+**Times come from the clock.** `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" stamp <work dir> <span> start|end` at the moment each span starts and ends: `run` (start to hand-off or early stop), each stage (`spec`, `plan`, `implement`, `checks`, `review`, `verify`, `learn`), each project stage (its agent's name), each fix round (`fix-1`, `fix-2`, …) and the design gate (`gate-design`: shown to approved). Never type, edit or estimate a time; a span not stamped stays out of the record. `run-record.sh times <work dir>` gives the durations; exit 1 names stamps out of order or unmatched.
 
 **One run per checkout.** Before anything else:
 
@@ -54,19 +58,19 @@ Pass `model` and `effort` **only** where the config sets them for that role, els
 
 | Size | When | What runs |
 |---|---|---|
-| `small` | a one-sentence change to a few files in one area, nothing on the risk list; a defect only with a known cause | spec (acceptance criteria only; tell the spec role the size) and its gate; implement, no plan stage; review: correctness, plus security if near the risk list; checks and verification as always |
+| `small` | a one-sentence change to a few files in one area, nothing on the risk list; a defect only with a known cause | spec (acceptance criteria only; tell the spec role the size) and the design gate; implement, no plan stage; review: correctness, plus security if near the risk list; checks and verification as always |
 | `standard` | everything else | every stage |
 | `large` | many modules, a migration, a public API or client contract, or a design with open choices | every stage, plus a second, independent correctness review (step 5) |
 
 Risk list: authentication, authorization, payments, personal or customer data, cryptography and secrets, migrations and schema changes, public APIs and client contracts, concurrency, dependencies, the "Do not touch" areas. In doubt: `standard`. The user can pick `small` or `full` (standard) in the request. A `small` change that grows while built (more files, or onto the risk list) → review as `standard`; note it in the record.
 
-**Project stages.** `stages.before_spec`, `stages.after_plan`, `stages.after_implement` and `stages.before_handoff` list project agents: run them one at a time, in list order, passing the work dir path and the stage each follows. Blocking problem → ask the user: fix (e.g. an implement fix round) and re-run the agent, continue anyway, or stop early (step 6). Unattended: stop early. Each returns its report in its final message (a subagent may be refused file writes): write it to `<work dir>/<agent name>.md` yourself, and take counts from the items listed, not the agent's stated total.
+**Project stages.** `stages.before_spec`, `stages.after_plan`, `stages.after_implement` and `stages.before_handoff` list library or project agents: run them one at a time, in list order, passing the work dir path and the stage each follows. Blocking problem → the role whose work it concerns fixes it (`after_plan`: the plan role; `after_implement`, `before_handoff`: an implement fix round), then re-run the agent; still blocking after 2 rounds → stop early (step 6). A problem only the team can decide (the work contradicts the goals, say) → a decision needed at the design gate, or the hand-off report once past it. Each returns its report in its final message (a subagent may be refused file writes): write it to `<work dir>/<agent name>.md` yourself (a library agent's name without `singularity:`), and take counts from the items listed, not the agent's stated total.
 
 **Ticket.** Use the singularity `tracker` skill:
 
 - `next` or empty request → `next()` picks the ticket (tracker without a queue: ask the user). `next` only starts new work, never resumes.
 - Then `get(ticket)`. Waiting to start (`todo`, or the tracker lacks that state) → `move(ticket, in_progress)` (a claim, for the files tracker). Taken first by another session → `next()` again (request `next`) or tell the user (named task).
-- Named ticket already `in_progress`, `blocked` or `in_review`: started before, maybe still in another session. Show its status and last log or comment lines; ask whether to **resume**. Only on yes: `move(ticket, in_progress)` (the files tracker checks it is still in one of those states), `comment(ticket, "Resumed")`, continue per **Resuming**. Unattended: don't resume; report its state and stop.
+- Named ticket already `in_progress`, `blocked` or `in_review`: started before. Its work dir exists in this checkout and no live lock holds it (**One run per checkout**) → **resume**, attended or not: `move(ticket, in_progress)` (the files tracker checks it is still in one of those states), `comment(ticket, "Resumed")`, continue per **Resuming**; tell the user its status and the stage you resume from. No work dir here: someone else may be on it → show its status and last log or comment lines; resume only on the user's yes (an intervention). Unattended: report its state and stop.
 - `done` → tell the user and stop, unless they ask to reopen it.
 - `tracker.type` is `none`, or a plain-text request → the text is the ticket.
 
@@ -85,7 +89,10 @@ Keep a **run record** in `<work_dir>/<slug>/run.json`; write it after every stag
 - implement fix rounds (count, any trigger);
 - each role's actual model;
 - `plugin_version`: the `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`; append `+dev` if `${CLAUDE_PLUGIN_ROOT}` contains neither `/plugins/cache/` nor `/plugins/marketplaces/` (a `--plugin-dir` checkout, maybe unreleased);
-- whether and how the user edited the spec or plan at the gates;
+- the design gate: whether it was shown and why, and whether and how the user edited the spec or plan there;
+- `decisions`: per role, the count of decisions taken and the topic, choice and grounding of each consequential one (from `Decisions` in the spec and plan, and the implementer's deviations); each decision needed, with the recommendation and the user's answer;
+- `interventions`: each stop for a person (stage, kind `gate`, `question` or `stop`, reason; times from the `gate-*` stamps);
+- the skills each agent was given;
 - review rounds; every confirmed and rejected finding (lens, severity, location, one-line problem, the guideline id it cites), and whether only the challenger confirmed it or a test reproduced it;
 - per role, the guideline ids its result reports applying;
 - each stop-gate block (`<work_dir>/.state/stop-gate.log`: time, block, failing checks);
@@ -95,24 +102,32 @@ Keep a **run record** in `<work_dir>/<slug>/run.json`; write it after every stag
 **Resuming.** A work dir for this ticket exists (`<work_dir>/<ticket id in lower case>-*/`) → continue in it:
 
 - Continue from the first stage its `run.json` doesn't mark done. No `run.json` (a pre-0.4.0 run) → infer from the files: no `spec.md` → step 1; no `plan.md` → step 2; unchecked steps in `plan.md` → step 3, with only those steps; no `review.md` → step 4; no `summary.md` → step 6.
-- Tell the user the stage you resume from. Re-show any gate not recorded as approved before passing it.
+- Tell the user the stage you resume from. The design gate is due (step 2) and not recorded as approved → show it before going on.
 - Keep the existing `spec.draft.md` and `plan.draft.md`: the learn job compares them with the finals.
+- A run started before 0.7.0 recorded a spec gate (`gate-spec`): its approval counts as the design gate's only if the plan gate was approved too, or the change is `small`.
 - Keep `clock.log`; don't stamp `run start` again. A span the interruption left open stays open (`times` lists it); stamp the resumed stage as `<stage>-resumed`.
 
-## 1. Spec (gate)
+## 1. Spec
 
-First run the `stages.before_spec` agents (**Project stages**) with the ticket text, e.g. research the spec role can't do: it has no web tools. Spawn the **spec** role with the ticket text, the paths those agents wrote, and output path `spec.md`. Keep its draft as written: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" draft <work dir>/spec.md <work dir>/spec.draft.md` (once, read-only; never write a draft again).
-Show the user the spec's goal, acceptance criteria and open questions; **stop for approval**. Apply their answers to `spec.md`. An answer that needs work no one at the gate can do (outside research, a new design) → run the agent that can (a `before_spec` agent, or the spec role) with it, then show the gate again; a later stage that changes an approved spec or plan does the same, and records it under `deviations`.
+First run the `stages.before_spec` agents (**Project stages**) with the ticket text, e.g. deep research (`singularity:researcher`). Spawn the **spec** role with the ticket text, the paths those agents wrote, and output path `spec.md`. Keep its draft as written: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-record.sh" draft <work dir>/spec.md <work dir>/spec.draft.md` (once, read-only; never write a draft again). The spec records the decisions it took and the decisions needed, usually none. `small`: go to the design gate (step 2), then step 3.
 
-## 2. Plan (gate)
+## 2. Plan and the design gate
 
-Skip for a `small` change: its spec is its plan.
+Skip the plan for a `small` change: its spec is its plan.
 
 Spawn the **plan** role with the spec path and output path `plan.md`; keep its draft: `run-record.sh draft <work dir>/plan.md <work dir>/plan.draft.md`.
-Show the approach, steps and risks; **stop for approval**.
-Then run the `stages.after_plan` agents (**Project stages**).
 
-Skip both gates only if the arguments contain `no-gates` or the user said so.
+**Design gate.** One stop for everything the team must decide, by `gates.design` (default `auto`):
+
+| Setting | Stops |
+|---|---|
+| `auto` | when the spec or plan has `Decisions needed` entries; none → no stop: continue, and the hand-off report lists the decisions taken |
+| `always`, or `gate` in the request | every run |
+| `never`, or `no-gates` in the request | never: continue on the recommendations; decisions needed left unanswered go under `deviations` and into the hand-off report |
+
+Shown: stamp `gate-design start`; in one message, the goal and acceptance criteria (one line each), the approach (the plan's first paragraph; `small`: none), the decisions taken (one line each, with grounding), and each decision needed with its options, evidence and recommendation, asking for all answers at once. Approved: stamp `gate-design end`. Apply the answers to `spec.md` and `plan.md`; an answer that changes the design → re-run the plan role with it; one that needs work no one at the gate can do (outside research, a new design) → the agent that can (`singularity:researcher` or another `before_spec` agent, the spec or plan role), then show the gate again only if new decisions needed arise. A later stage that changes an approved spec or plan does the same, and records it under `deviations`.
+
+Then run the `stages.after_plan` agents (**Project stages**).
 
 ## 3. Implement
 
@@ -151,15 +166,15 @@ Any **blocking** findings → an **implement** fix round with only those: per fi
 Spawn the **verify** role with the spec path and the work dir. It runs the checks (`run-checks.sh`) and maps each acceptance criterion to its tests; its Test Coverage and Verification Summary goes first in `summary.md`. FAIL → one **implement** fix round with the failures, then step 4 and verify again; still failing → stop early (below).
 Then run the `stages.before_handoff` agents.
 
-**Stopping early.** On remaining blockers or failed checks or verification: `move(ticket, blocked)`, `comment` the reason and work dir path; stamp `run end`; run step 8 (learn) so the stop reaches the record; remove the run's `active-run` lock and `baseline-failures`; run `test-guard.sh reset`; report to the user.
+**Stopping early.** On remaining blockers or failed checks or verification, or decisions needed in an unattended run: record the intervention; `move(ticket, blocked)`, `comment` the reason and work dir path; stamp `run end`; run step 8 (learn) so the stop reaches the record; remove the run's `active-run` lock and `baseline-failures`; run `test-guard.sh reset`; report to the user.
 
 ## 7. Hand-off
 
-Write `summary.md`: what changed, verification evidence, open non-blocking findings, follow-ups. Stamp `run end` (the hand-off time). Run step 8 (learn) before any commit, so its guideline, record and eval-case changes join the code's commit and PR/MR. Then keep the change as handed off: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/outcomes.sh" snapshot <slug> --base <base>` (a local ref; later learn jobs tell people's edits and fixes from the agents' work), recorded in `run.json`. Then remove the run's `active-run` lock and `baseline-failures`, and run `test-guard.sh reset`.
+Write `summary.md`: what changed, verification evidence, the decisions the agents took (from the spec, plan and implementer report: consequential ones with their grounding, the rest counted) and the user's answers at the design gate, open non-blocking findings, follow-ups. Stamp `run end` (the hand-off time). Run step 8 (learn) before any commit, so its guideline, record and eval-case changes join the code's commit and PR/MR. Then keep the change as handed off: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/outcomes.sh" snapshot <slug> --base <base>` (a local ref; later learn jobs tell people's edits and fixes from the agents' work), recorded in `run.json`. Then remove the run's `active-run` lock and `baseline-failures`, and run `test-guard.sh reset`.
 
 - Commit only if `conventions.auto_commit` is true, by the project's commit convention, ending each message with the trailer `Singularity-Run: <slug>`. Not committing: `summary.md` asks to keep that trailer in the commit message.
 - Draft PR/MR (tracker skill `open_change`, then `link`) only if `conventions.auto_pr` is true or the user asks; then `move(ticket, in_review)`, `comment` the link, record the PR/MR in `run.json`. Never merge it (`gh pr merge`, `glab mr merge`): merging waits for the human review.
-- Files tracker without a PR/MR: `move(ticket, in_review)` and `comment` the path to `summary.md` (and the commit, if any). No merge event closes a task file: ask the user whether to `move(ticket, done)`. Unattended: leave the task in review.
+- Files tracker without a PR/MR: `move(ticket, in_review)` and `comment` the path to `summary.md` (and the commit, if any). No merge event closes a task file: leave it in review; the report says it moves to done with `move <ID> done`, or by asking Claude, once the change ships.
 
 ## 8. Learn
 
@@ -171,7 +186,7 @@ Skip if `learning.enabled` is false. Otherwise spawn the **optimize** role once,
 
 It also checks later commits for fixes and reverts of earlier runs' lines (`outcomes.sh later-fixes`, unless `learning.later_fixes` is false); first `git fetch --quiet origin <default_branch>` if the remote exists (a failed fetch is fine).
 
-The learn job changes guidelines only for defects caused by a weak guideline and for user corrections, and fixes those this run's change made wrong. Tell the user each guideline added, changed or removed, with the defect or correction behind it, and any checks or other changes proposed for the next optimization.
+The learn job changes guidelines only for defects caused by a weak guideline, for user corrections, and for answers the user gave at the design gate that hold beyond this ticket (so nobody is asked again), and fixes those this run's change made wrong. Tell the user each guideline added, changed or removed, with the defect or correction behind it, and any checks or other changes proposed for the next optimization.
 
 ## 9. Optimization check
 
@@ -181,9 +196,11 @@ Skip if `optimization.every_runs` is 0. Otherwise the **optimize** role is due f
 - **an optimization**: `runs.jsonl` has at least `optimization.every_runs` (default 10) `"type":"run"` lines dated after the last entry in `optimizations.md`;
 - **upstream reports to file**: `.claude/singularity/upstream/` on the default branch holds reports still in status `draft` (merged means the team approved them).
 
-One due → say so in your report; unless unattended, offer to start it. On yes, spawn the optimize role with `onboard`, `confirm goals`, `optimize` or `file upstream reports`. Each **Decision needed** block → show the user; restart the role with their answer, until it reports done.
+- **An optimization** due → start it, attended or not, unless `optimization.auto_start` is false (then say it is due): spawn the optimize role in the background with `optimize, started by /singularity:feature`. It works in its own worktree within `optimization.max_eval_cost_usd`, adopts only what its validation supports and opens a draft PR/MR; what needs a person waits there.
+- **Onboarding** or **confirming the goals** due → say so: it is the team's approval of the project's setup (`/singularity:init-project`, or ask for the optimizer with `onboard` or `confirm goals`); don't start it.
+- **Upstream reports to file** → list them in the report: filing is public, and only the user's explicit yes starts it (`file upstream reports`).
 
-Finish with a short report: result, verification, open findings, guidelines changed, PR/MR link if opened.
+Finish with the **hand-off report**, the second point a person is needed: result and that it is ready to deploy (or why the run stopped); verification evidence; the decisions taken, consequential ones listed with grounding; interventions this run; open findings; guidelines changed; PR/MR link if opened; an optimization started.
 
 ## Learning from human reviews
 

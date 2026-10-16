@@ -4,7 +4,7 @@
 # Usage:
 #   run-record.sh stamp <run dir> <span> start|end
 #       appends "<epoch>\t<UTC time>\t<span>\t<start|end>" to <run dir>/clock.log; prints the UTC time.
-#       A span is a stage, project stage, fix round or gate: spec, gate-spec, plan, implement, fix-1, ...;
+#       A span is a stage, project stage, fix round or gate: spec, plan, gate-design, implement, fix-1, ...;
 #       the span "run" goes from the start to the hand-off or early stop.
 #   run-record.sh times <run dir>
 #       prints the times in clock.log as one JSON line: lead_s (the span "run"); active_s (seconds any other

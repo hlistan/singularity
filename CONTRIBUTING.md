@@ -27,6 +27,7 @@ Test in a project: `claude --plugin-dir /path/to/singularity/plugins/singularity
 | Shared agent behaviour | `plugins/singularity/agents/*.md` | Each definition under ~120 lines; prefer config and checks over prose |
 | The optimizer's procedures | `plugins/singularity/optimizer/*.md` | Optimizer playbooks, one per job; maintainer review (CODEOWNERS) |
 | Pipelines and commands | `plugins/singularity/skills/*/SKILL.md` | |
+| Agent and skill library | `plugins/singularity/agents/` (library agents), `plugins/singularity/library/skills/` | The main place to contribute; rules and catalog in `plugins/singularity/library/README.md`; `node scripts/check-library.js` |
 | Orchestration | `plugins/singularity/workflows/*.js` | Plain JavaScript; see Claude Code's `/workflow-authoring` skill |
 | Guardrails | `plugins/singularity/hooks/`, `scripts/` | Maintainer review (CODEOWNERS) |
 | Regression cases | `plugins/singularity/evals/` | Add cases only; never weaken graders |
@@ -47,7 +48,7 @@ A project's optimizer files each problem it finds in the shared plugin as an **u
 
 1. `claude plugin validate --strict .` passes.
 2. `pre-commit run --all-files` passes (lint, shellcheck, markdownlint, gitleaks, sensitive-info check, version check).
-3. `node scripts/check-evals.js` passes (CI too). Changed a script under `plugins/singularity/scripts/` or `skills/tracker/scripts/`, or the init-project git-ignore procedure: every `tests/*.test.sh` passes, on macOS also under `/bin/bash` (CI: bash 3.2 on macOS; bash 5 with `mawk` as `awk` on Linux). Awk stays POSIX. Template Markdown passes markdownlint's defaults, 80-column limit included (`plugins/singularity/templates/.markdownlint-cli2.yaml`, CI-checked).
+3. `node scripts/check-evals.js` and `node scripts/check-library.js` pass (CI too). Changed a script under `plugins/singularity/scripts/` or `skills/tracker/scripts/`, or the init-project git-ignore procedure: every `tests/*.test.sh` passes, on macOS also under `/bin/bash` (CI: bash 3.2 on macOS; bash 5 with `mawk` as `awk` on Linux). Awk stays POSIX. Template Markdown passes markdownlint's defaults, 80-column limit included (`plugins/singularity/templates/.markdownlint-cli2.yaml`, CI-checked).
 4. Changes under `plugins/singularity/` other than eval cases: a line under `## [Unreleased]` in `CHANGELOG.md`, **Breaking:** first if projects must change something. Version untouched (release PRs only); `node scripts/version.js check --base origin/main` runs CI's check.
 5. Agent, skill or workflow changes: one eval-suite run (`plugins/singularity/evals/README.md`), summary table in the PR. Real model calls: iterate with `--case` and `--runs 1`.
 6. Behaviour changes: a contract (should fix, might break, how checked).

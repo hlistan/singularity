@@ -1,6 +1,35 @@
-# Pipeline design: checks, review, sizing and isolation
+# Pipeline design: autonomy, checks, review, sizing and isolation
 
 Why `/singularity:feature` works this way, beyond roles and models (`docs/models-and-effort.md`) and learning (`docs/self-optimization.md`). Researched October 2026; mostly practitioner evidence.
+
+## Autonomy: decide by evidence, ask only what only people know
+
+- The `autonomy` skill (spec writer, planner, implementer, optimizer): find the answer cheapest first: request, goals, guidelines, config; the code and git history; earlier decisions in the record; the web (official docs first, the versions in use, at most 5 searches and 5 fetches per decision).
+- Default: decide and record one line per decision, with its grounding and the option rejected. Escalate only intent only the team knows, a one-way door with no proven winner (public contract, data model or migration, new external service, security or privacy posture), or a hard line (goals constraint, "Do not touch", data leaving the system, spending money, deleting data). Each escalation carries options, evidence and a recommendation; work continues on it.
+- One **design gate** after the plan, shown only for decisions needed (`gates.design: auto`; `always` and `never` too), replacing the spec and plan gates. The hand-off report lists every decision taken, for review after the fact. Small asks became automatic: resuming a run this checkout started, re-running a blocked project stage after a fix round, migrating old lesson files, starting a due optimization.
+- Interventions (each stop for a person) and decisions are recorded per run. Answers at the gate that hold beyond the ticket become guidelines; topics researched in several runs become guideline proposals.
+
+| Finding | Source | In singularity |
+|---|---|---|
+| Asking about intent (expected behaviour) raised resolve rates on underspecified tasks by up to 74%; asking about file locations barely helped a strong model, which finds code itself; models rarely ask unless prompted | Vijayvargiya et al., *Ambig-SWE* (CMU, 2026) | Escalate intent only; never ask what the repository answers |
+| Detecting gaps once, up front, beat asking mid-task, with fewer questions on simple tasks | Edwards & Schuster, *Ask or Assume?* (EMNLP 2026) | Gaps settled in the spec; escalations collect at one gate |
+| In 35% of the times Claude Code stopped itself, it asked the user to choose between approaches | Anthropic, *Measuring AI agent autonomy in practice* (February 2026) | Choices between approaches researched and decided, recorded |
+| Devin asks for plan approval only when its confidence isn't high; Factory approves a spec once, then sets autonomy by reversibility; Copilot coding agent puts one human gate at the end, each change traceable to its session | Cognition, *Devin 2.1* (2025); Factory, *Specification mode*; GitHub, *Copilot coding agent* docs | `gates.design: auto`; decisions in the spec, plan and hand-off report |
+| Decide two-way doors fast and one-way doors carefully; the auto-mode classifier's blocks centre on blast radius (destroying or exfiltrating data, weakening security, affecting others) | Amazon, *2015 letter to shareholders*; Anthropic, *How we built Claude Code auto mode* (March 2026) | The escalation list: one-way doors and hard lines |
+| Unguided research agents chose SEO content farms until told to prefer primary sources; fact-finding needs about 3-10 tool calls | Anthropic, *How we built our multi-agent research system* (June 2025) | Official sources first; per-decision search budget |
+| Models solve about half of tasks tied to specific library versions | Misra et al., *GitChameleon 2.0* (2025) | Research against the versions in the lockfile |
+| Reusing earlier plans cut cost about 50% at 96.6% of performance | *Agentic Plan Caching* (NeurIPS 2025) | Earlier decisions read before researching; repeated research becomes a guideline |
+
+## A library selected per project
+
+- Library agents live with the shared agents (`agents/`); library skills in `library/skills/`, read by an agent only when the project's `skills` map gives them. Onboarding matches the catalog's signals against its survey; each selection is a canary.
+
+| Finding | Source | In singularity |
+|---|---|---|
+| Every registered skill's name and description loads into each session, within 1% of the context; past it, descriptions are dropped | Claude Code docs, *Skills* | Library skills aren't registered: no cost where unused |
+| With 1,000 irrelevant skills listed, agents loaded the relevant one 27.4% of the time instead of 73.6%; choosing skills explicitly up front kept 73.9% | Liu, Chen, Zhang, *Lost in Implicit Routing* (preprint, October 2026) | Skills chosen per role at onboarding and named in the agent's prompt |
+| Curated skills helped (+16.2 points on average, +4.5 in software engineering); 16 of 84 tasks got worse; self-written skills added about nothing; focused beat comprehensive | *SkillsBench* (preprint, 2026) | Narrow, human-curated entries; each selection measured as a canary |
+| 26.1% of 31,000 marketplace skills had a vulnerability; skills bundling scripts were 2.12× riskier | Liu et al., *Agent Skills in the Wild* (preprint, 2026) | Library skills hold Markdown only (`scripts/check-library.js`) |
 
 ## Mechanical checks before judgement
 
@@ -41,7 +70,7 @@ Why `/singularity:feature` works this way, beyond roles and models (`docs/models
 
 ## The process fits the change
 
-- `small` (one-sentence change, few files, off the risk list): short spec, one gate, no plan stage, correctness review. `large`: everything plus the second correctness pass.
+- `small` (one-sentence change, few files, off the risk list): short spec, no plan stage, correctness review; the design gate only for decisions needed. `large`: everything plus the second correctness pass.
 
 | Finding | Source | In singularity |
 |---|---|---|
@@ -67,6 +96,21 @@ Why `/singularity:feature` works this way, beyond roles and models (`docs/models
 
 ## Sources
 
+- Vijayvargiya et al., *Interactive agents to overcome ambiguity in software engineering* (Ambig-SWE, 2026): <https://arxiv.org/abs/2502.13069>
+- Edwards & Schuster, *Ask or Assume?* (EMNLP 2026): <https://arxiv.org/abs/2603.26233>
+- Anthropic, *Measuring AI agent autonomy in practice* (February 2026): <https://www.anthropic.com/research/measuring-agent-autonomy>
+- Cognition, *Devin 2.1* (May 2025): <https://cognition.com/blog/devin-2-1>
+- Factory, *Specification mode*: <https://docs.factory.com/cli/user-guides/specification-mode>
+- GitHub, *Responsible use of Copilot coding agent*: <https://docs.github.com/en/copilot/responsible-use/copilot-coding-agent>
+- Amazon, *2015 letter to shareholders* (April 2016): <https://www.sec.gov/Archives/edgar/data/1018724/000119312516530910/d168744dex991.htm>
+- Anthropic, *How we built Claude Code auto mode* (March 2026): <https://www.anthropic.com/engineering/claude-code-auto-mode>
+- Anthropic, *How we built our multi-agent research system* (June 2025): <https://www.anthropic.com/engineering/multi-agent-research-system>
+- Misra et al., *GitChameleon 2.0* (2025): <https://arxiv.org/abs/2507.12367>
+- *Agentic Plan Caching* (NeurIPS 2025): <https://arxiv.org/abs/2506.14852>
+- Claude Code docs, *Skills*: <https://code.claude.com/docs/en/skills>
+- Liu, Chen, Zhang, *Lost in Implicit Routing* (October 2026): <https://arxiv.org/abs/2610.18522>
+- *SkillsBench* (2026): <https://arxiv.org/abs/2602.12670>
+- Liu et al., *Agent Skills in the Wild* (2026): <https://arxiv.org/abs/2601.10338>
 - Claude Code docs: *Best practices* <https://code.claude.com/docs/en/best-practices>; *Hooks* <https://code.claude.com/docs/en/hooks>; *Permissions* <https://code.claude.com/docs/en/permissions>; *Worktrees* <https://code.claude.com/docs/en/worktrees>; *Code Review* <https://code.claude.com/docs/en/code-review>
 - Anthropic, *Effective harnesses for long-running agents* (November 2025): <https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents>
 - Anthropic, *Code Review* announcement (March 2026): <https://claude.com/blog/code-review>

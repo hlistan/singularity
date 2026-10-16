@@ -34,13 +34,15 @@ const streams = [
     effort: 'medium',
     prompt: `Compute the workflow health trends from every runs.jsonl. For each metric compare the most recent 10 runs with the 10 before (or split in half if fewer).
 Quality: blocking findings per run, review rounds per run, stop-gate blocks per run, first-pass verification rate, spec edit rate and plan edit rate at the gates, user corrections per run (correction lines, by role and trigger), escaped defects per run (human_review lines and later-fix defects), rejected-findings rate (reviewer false positives), the share of handed-off changes merged without human edits ("unmodified"), the share of open findings people addressed, per lens ("addressed"), and the share of runs whose change a later commit had to fix or revert (later_fix lines with "defect": true, and "fixes" in later run lines: the pipeline's change-failure rate).
-Flow: median lead time (lead_s), flow efficiency (active_s divided by lead_s: the share of the lead time spent working rather than waiting), median wait at each gate (gate_wait_s), median time from PR/MR to merge where human_review lines allow it, fix rounds per run, runs that stopped early and why ("stopped"), and median seconds and tokens per stage, with each stage's share of the total.
+Flow: median lead time (lead_s), flow efficiency (active_s divided by lead_s: the share of the lead time spent working rather than waiting), median wait at each gate (gate_wait_s; runs before 0.7.0 have spec and plan gates, later ones a single design gate), user interventions per run ("interventions": stops for a person, by kind and stage), decisions the agents took per run and the share that went to the team ("decisions": counts and "needed"), topics researched in more than one run ("decisions"."researched"), median time from PR/MR to merge where human_review lines allow it, fix rounds per run, runs that stopped early and why ("stopped"), and median seconds and tokens per stage, with each stage's share of the total.
 Note any change of models or plugin_version between the windows (older lines may say plugin_rev; a +dev suffix means an unreleased checkout).`,
     schema: obj({
       runs: num,
       windows: arr(obj({ metric: str, recent: num, previous: num, direction: { type: 'string', enum: ['better', 'worse', 'flat', 'n/a'] }, note: str })),
       stages: arr(obj({ stage: str, medianSeconds: num, medianTokens: num, shareOfTime: num })),
       stopped: arr(obj({ reason: str, count: num })),
+      interventions: arr(obj({ kind: str, stage: str, reason: str, count: num })),
+      researchedAgain: arr(obj({ topic: str, runs: num })),
       notes: str,
     }),
   },
@@ -65,10 +67,11 @@ Also say where the fix belongs: "project" (this project's config, context, guide
   {
     key: 'value',
     effort: 'high',
-    prompt: `Judge whether the delivery serves what the project is for. Read .claude/singularity/goals.md in each source's repository (users, value, goals now, trade-offs, constraints); if it is missing or still has its template TODOs, say so and report only the work mix. From run lines ("goal", "kind", "ticket") and the specs in the work dirs, report: how the runs split across the goals, defects, refactoring and maintenance (flow distribution); goals with no work in the period; work that serves no goal; and, using the failure categories and the "path" of the findings and escaped defects, where quality problems hit what users rely on most. Say whether the effort matches the goals and the trade-off order, with refs.`,
+    prompt: `Judge whether the delivery serves what the project is for. Read .claude/singularity/goals.md in each source's repository (users, value, goals now with their KPI table, trade-offs, constraints); if it is missing or still has its template TODOs, say so and report only the work mix. For each KPI report its target and the latest value: run its "measured by" only if it is a read-only command or a file to read, else take the value the table records; never estimate one. From run lines ("goal", "kind", "ticket") and the specs in the work dirs, report: how the runs split across the goals, defects, refactoring and maintenance (flow distribution); goals with no work in the period; work that serves no goal; and, using the failure categories and the "path" of the findings and escaped defects, where quality problems hit what users rely on most. Say whether the effort matches the goals and the trade-off order, with refs.`,
     schema: obj({
       goalsStatus: { type: 'string', enum: ['confirmed', 'todo', 'missing'] },
       distribution: arr(obj({ bucket: str, runs: num, share: num })),
+      kpis: arr(obj({ kpi: str, current: str, target: str, by: str, source: str })),
       idleGoals: arr(str),
       noGoal: arr(str),
       userImpact: arr(obj({ area: str, goal: str, problem: str, refs: arr(str) })),
@@ -78,7 +81,7 @@ Also say where the fix belongs: "project" (this project's config, context, guide
   {
     key: 'corrections',
     effort: 'medium',
-    prompt: `Analyse what humans corrected: at the approval gates (compare spec.draft.md with spec.md and plan.draft.md with plan.md in the work dirs where both exist, and use "gate_edit_kinds" in run lines), in their prompts (correction lines in runs.jsonl: role, category, scope, cause and trigger) and in their edits before merge ("corrections" in human_review lines). Group the corrections into kinds and count them per role and per source. Say which kinds keep coming back after a guideline was written for them.`,
+    prompt: `Analyse what humans corrected: at the design gate, or the spec and plan gates of runs before 0.7.0 (compare spec.draft.md with spec.md and plan.draft.md with plan.md in the work dirs where both exist, and use "gate_edit_kinds" in run lines), in their prompts (correction lines in runs.jsonl: role, category, scope, cause and trigger) and in their edits before merge ("corrections" in human_review lines). Group the corrections into kinds and count them per role and per source. Say which kinds keep coming back after a guideline was written for them.`,
     schema: obj({ kinds: arr(obj({ role: str, kind: str, count: num, examples: arr(str) })), notes: str }),
   },
   {

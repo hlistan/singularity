@@ -40,6 +40,9 @@ jobs:
           claude plugin validate --strict .
           claude plugin validate --strict ./plugins/singularity
 
+      - name: Check the agent and skill library against its catalog
+        run: node scripts/check-library.js
+
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:

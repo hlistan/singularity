@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/hlistan/singularity/actions/workflows/ci.yml/badge.svg)](https://github.com/hlistan/singularity/actions/workflows/ci.yml) [![Sensitive information checks](https://github.com/hlistan/singularity/actions/workflows/sensitive-info.yml/badge.svg)](https://github.com/hlistan/singularity/actions/workflows/sensitive-info.yml) [![Release](https://img.shields.io/github/v/release/hlistan/singularity?display_name=release&label=release)](https://github.com/hlistan/singularity/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A self-improving harness for autonomous software delivery with [Claude Code](https://code.claude.com), packaged as **one plugin**. Shared behaviour (agents, pipelines, guardrails, standards) lives here; project repos hold only their config, own agents and workflows, experience and eval cases. A release here reaches every project.
+A self-improving harness for autonomous software delivery with [Claude Code](https://code.claude.com), packaged as **one plugin**. Shared behaviour (agents, pipelines, guardrails, standards, a library of agents and skills) lives here; project repos hold only their config, own agents and workflows, experience and eval cases. A release here reaches every project.
+
+The agents work towards the project's goals and KPIs on their own: they decide what evidence settles (the code, the goals, the guidelines, web research) and record why. A person approves only the decisions evidence can't settle, at one design gate per ticket, and gets the finished change, verified and ready to deploy. The optimizer tunes the harness to move the KPIs at the least time, tokens and interruption.
 
 > **Status:** early: the structure validates and workflows pass dry runs; pipelines are not yet exercised at scale on real projects. Feedback and experience reports: [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -18,7 +20,7 @@ Loaded from this git repository via `marketplace.json`; no registry. Projects fo
     - [Implement a feature from a prompt](#implement-a-feature-from-a-prompt)
     - [Work through a queue of task files](#work-through-a-queue-of-task-files)
     - [Fix a defect or apply a refactoring](#fix-a-defect-or-apply-a-refactoring)
-    - [Run without the approval gates](#run-without-the-approval-gates)
+    - [Choose when the design gate stops](#choose-when-the-design-gate-stops)
     - [Resume an interrupted run](#resume-an-interrupted-run)
     - [Teach the agents by correcting them](#teach-the-agents-by-correcting-them)
     - [Learning from human reviews](#learning-from-human-reviews)
@@ -26,6 +28,7 @@ Loaded from this git repository via `marketplace.json`; no registry. Projects fo
     - [The optimizer: onboard, optimize, report upstream](#the-optimizer-onboard-optimize-report-upstream)
   - [Customizing agents and turning them off](#customizing-agents-and-turning-them-off)
     - [Change a role's model or effort](#change-a-roles-model-or-effort)
+    - [Select library agents and skills](#select-library-agents-and-skills)
     - [Give the agents project knowledge](#give-the-agents-project-knowledge)
     - [Tune the review](#tune-the-review)
     - [Hooks](#hooks)
@@ -37,6 +40,7 @@ Loaded from this git repository via `marketplace.json`; no registry. Projects fo
     - [Add a pipeline step](#add-a-pipeline-step)
     - [Add a workflow or a command](#add-a-workflow-or-a-command)
     - [Let custom agents learn](#let-custom-agents-learn)
+- [Agent and skill library](#agent-and-skill-library)
 - [Roles and models](#roles-and-models)
 - [Trackers](#trackers)
 - [Guidelines and self-optimization](#guidelines-and-self-optimization)
@@ -54,18 +58,18 @@ Loaded from this git repository via `marketplace.json`; no registry. Projects fo
 ```text
 /singularity:feature <ticket>
 
- tracker.get ─▶ size ─▶ spec ─▶ [gate] ─▶ plan† ─▶ [gate]† ─▶ after_plan* ─▶ implement ─▶ after_implement*
+ tracker.get ─▶ size ─▶ before_spec* ─▶ spec ─▶ plan† ─▶ [design gate]‡ ─▶ after_plan* ─▶ implement ─▶ after_implement*
                                                                   (stop hook: can't finish while checks fail)
                                                                                          │
  learn ◀─ hand-off ◀─ before_handoff* ◀─ verify ◀─ fix blockers (≤2) ◀─ review ◀─ checks (exit codes)
    │                                                   (blocking lenses challenged, advisory lenses advise)
    └─▶ guidelines from defects and your corrections (fast loop)     every ~10 runs ─▶ optimizer agent (slow loop)
-                                          * = project-defined stages   † = not for small changes
+ * = library or project stages   † = not for small changes   ‡ = stops only for decisions evidence can't settle
 ```
 
 | Command | What it does |
 |---|---|
-| `/singularity:feature <ticket \| defect \| refactoring> [small \| full]` | The whole delivery, sized to the change: gated spec and plan (small changes skip the plan), implementation with frozen tests, checks, a review where correctness and security can block, verification, hand-off, learning |
+| `/singularity:feature <ticket \| defect \| refactoring> [gate \| no-gates] [small \| full]` | The whole delivery, sized to the change: spec and plan with their decisions grounded in evidence, one design gate for what only the team can decide (small changes skip the plan), implementation with frozen tests, checks, a review where correctness and security can block, verification, hand-off, learning |
 | `/singularity:init-project` | Sets up a project repo, then has the optimizer onboard the agents to it |
 
 Everything else is agents, run by the pipeline or called by name (`@agent-singularity:<name>`); you call the [optimizer](#the-optimizer-onboard-optimize-report-upstream) yourself. `/singularity:` also lists `optimize-scan` and `replay-evals`: internal optimizer workflows (Claude Code lists every plugin workflow); ask for the optimizer instead.
@@ -101,7 +105,7 @@ Teammates on a set-up project: step 4.
 | `.claude/singularity.md` | Project config: commands, conventions, tracker, overrides |
 | `.claude/settings.json` | Marketplace and enabled plugin, for the whole team |
 | `CLAUDE.md` | Imports the config and project guidelines into every session |
-| `.claude/singularity/goals.md` | What the project is for |
+| `.claude/singularity/goals.md` | What the project is for, and the KPIs that show progress |
 | `.claude/singularity/guidelines/` | Agent guidelines: one file every session loads, one per role |
 | `.claude/singularity/experience/` | Learning record: run digests, the optimizer's archive |
 | `.claude/singularity/evals/` | Regression cases (real escaped defects, known false positives) the optimizer validates against |
@@ -109,11 +113,11 @@ Teammates on a set-up project: step 4.
 | `.mcp.json` | Jira only: the Atlassian MCP server |
 | `.tasks/` | Task files only: the task folder, git-ignored |
 
-It also test-runs each project command, confirms the tracker with you, offers optional hook scripts and example agents, has the optimizer **onboard the agents** ([details](#the-optimizer-onboard-optimize-report-upstream)), and checks git-ignore: shared files tracked; work dir, task folder, `.claude/settings.local.json` ignored.
+It also test-runs each project command, detects the tracker (asking only what the repository doesn't show), has the optimizer **onboard the agents** (goals and KPIs, guidelines, the team selected from the [library](#agent-and-skill-library); [details](#the-optimizer-onboard-optimize-report-upstream)), and checks git-ignore: shared files tracked; work dir, task folder, `.claude/settings.local.json` ignored.
 
-**3. Check what onboarding wrote, and fill in the gaps.** Confirm `goals.md` once it matches the team's aims; pick the optimizer's proposals; fix errors in `CLAUDE.md` and `.claude/singularity/guidelines/project.md`, which every agent reads. Answer open questions; replace each listed `TODO`, above all in `commands` in `.claude/singularity.md`: the verifier runs them, the implementer uses `test_one` for targeted tests, so a wrong command costs every run.
+**3. Check what onboarding wrote, and fill in the gaps.** Confirm `goals.md` and its KPIs once they match the team's aims; pick the optimizer's proposals, the library agents and skills it selected among them; fix errors in `CLAUDE.md` and `.claude/singularity/guidelines/project.md`, which every agent reads. Answer open questions; replace each listed `TODO`, above all in `commands` in `.claude/singularity.md`: the verifier runs them, the implementer uses `test_one` for targeted tests, so a wrong command costs every run.
 
-Leave `roles`, `stages` and `review.extra_*` empty unless changing something: omitted keys follow shared defaults, which new releases keep improving.
+Leave `roles` and `gates` alone unless changing something: omitted keys follow shared defaults, which new releases keep improving. `stages`, `review.extra_reviewers` and `skills` hold what onboarding selected.
 
 **4. Commit the files**, ideally via a PR for team review. The committed `.claude/settings.json` enables singularity for everyone who clones and trusts the folder but doesn't download it: each teammate runs `claude plugin install singularity@singularity --scope project` once (until then, `/plugin`'s Errors tab shows it enabled but not installed).
 
@@ -122,13 +126,13 @@ Leave `roles`, `stages` and `review.extra_*` empty unless changing something: om
 - `claude plugin list` (terminal): `singularity@singularity` and its version;
 - `/singularity:` lists the commands; `@agent-singularity:` the shared agents.
 
-Then try a small ticket, gates on (first scenario).
+Then try a small ticket with `gate`, to see the design gate (first scenario).
 
 **Updates:** [Release](#release); to hold one release, [Pin a project to a release](#pin-a-project-to-a-release).
 
 ### Usage scenarios
 
-Each `/singularity:feature` run keeps its files in `<work_dir>/<slug>/` (`conventions.work_dir`, default `.agentic/work/`, git-ignored): `spec.md`, `plan.md`, `review.md`, `summary.md`, first spec and plan drafts, `run.json` (crash-resume record).
+Each `/singularity:feature` run keeps its files in `<work_dir>/<slug>/` (`conventions.work_dir`, default `.agentic/work/`, git-ignored): `spec.md`, `plan.md`, `review.md`, `summary.md`, first spec and plan drafts, `run.json` (crash-resume record: stages, decisions, each stop for a person).
 
 #### Implement a feature from a tracker ticket
 
@@ -138,14 +142,15 @@ Each `/singularity:feature` run keeps its files in `<work_dir>/<slug>/` (`conven
 ```
 
 1. **Ticket.** Read, moved to in progress, sized `small` (one-sentence change, few files, away from risky areas: authorization, payments, migrations, public APIs), `standard` or `large`; `small` or `full` in the command overrides.
-2. **Spec, then a gate.** `spec.md`: acceptance criteria, open questions. Answer, request changes or edit it, then approve; the learn job diffs your final spec against the first draft, so edits teach the next run.
-3. **Plan, then a gate.** Same for `plan.md` (approach, steps, risks). Small changes skip it: the acceptance criteria are the plan.
+2. **Spec.** `spec.md`: acceptance criteria; the decisions the spec writer took, each with its grounding (the code, the goals, a guideline, a cited source); and decisions needed, only what the team must decide ([how agents decide](docs/pipeline-design.md#autonomy-decide-by-evidence-ask-only-what-only-people-know)).
+3. **Plan, then the design gate.** `plan.md`: approach, decisions, steps, risks; small changes skip it, the acceptance criteria are the plan. The gate stops only when the spec or plan has decisions needed (`gates.design: auto`): answer them all at once, edit or approve. The learn job diffs your final spec and plan against the first drafts, and turns answers that hold beyond the ticket into guidelines, so nobody asks again.
 4. **Implement.** On the `conventions.branch` branch, plan step by step, test first. A test freezes once it fails for the right reason; the plugin then blocks edits to it. On "done", a hook runs the checks, sending the implementer back while they fail.
 5. **Checks.** The pipeline runs build, lint, type check and tests (`checks.run`); exit code = pass/fail. Pre-run failures (recorded first) are listed in the summary, not counted against the change. Also reported: tests changed after freezing; existing tests changed or deleted without the plan naming them. Failures return to the implementer before review.
 6. **Review.** One reviewer per lens and per project reviewer, on the whole change incl. new files. A second reviewer challenges each blocking finding; the implementer reproduces it with a failing test, then fixes; at most two rounds. Blocking lenses: [Tune the review](#tune-the-review).
 7. **Verify.** Checks rerun, each acceptance criterion mapped to a passing test, tests confirmed intact. Failure -> one fix round.
-8. **Hand-off.** `summary.md` and a short report. Commit only if `conventions.auto_commit` is true; draft PR/MR only if `conventions.auto_pr` is true or you ask; ticket -> in review, with the link. Task files go to review regardless.
+8. **Hand-off.** `summary.md` and a short report: ready to deploy, with the evidence and every decision the agents took, for review after the fact. Commit only if `conventions.auto_commit` is true; draft PR/MR only if `conventions.auto_pr` is true or you ask; ticket -> in review, with the link. Task files go to review regardless.
 9. **Learn.** The learn job updates the guidelines and lists each one added, changed or removed, with its cause ([Teach the agents by correcting them](#teach-the-agents-by-correcting-them)).
+10. **Optimize, when due.** Every `optimization.every_runs` runs the optimizer starts in the background and delivers validated harness changes as a draft PR/MR.
 
 Blockers left after the fix rounds, or failing checks or verification -> the run stops, comments reason and work dir on the ticket, moves it to blocked (task files always; Jira, GitHub, GitLab if `tracker.states` maps `blocked`). Fix, resume.
 
@@ -157,7 +162,7 @@ One run per checkout: a second `/singularity:feature` stops, naming the holder. 
 /singularity:feature Add CSV export to the orders page. Admins only, same filters as the table, at most 10,000 rows.
 ```
 
-The text is the ticket: same pipeline, no tracker reads or updates, work dir named after the request (e.g. `.agentic/work/orders-csv-export/`). Write it like a ticket (audience, expected behaviour, constraints, done criteria); gaps return as open questions at the spec gate.
+The text is the ticket: same pipeline, no tracker reads or updates, work dir named after the request (e.g. `.agentic/work/orders-csv-export/`). Write it like a ticket (audience, expected behaviour, constraints, done criteria); gaps the code and research can't fill come back as decisions needed at the design gate.
 
 #### Work through a queue of task files
 
@@ -191,13 +196,14 @@ Claiming and statuses: [Trackers](#trackers). Other trackers have no queue: `nex
 
 Same pipeline, adapted: a defect spec starts with the reproduction; the plan's first step is a failing test reproducing it. Refactoring: `conventions.breaking_changes` says whether backward compatibility may be dropped; client contracts are tested either way.
 
-#### Run without the approval gates
+#### Choose when the design gate stops
 
 ```text
-/singularity:feature ABC-123 no-gates
+/singularity:feature ABC-123 gate       # always show the spec and plan
+/singularity:feature ABC-123 no-gates   # never stop: go on the agents' recommendations
 ```
 
-Small, well-specified tickets; scheduled or headless runs (`claude -p --permission-mode auto "/singularity:feature ABC-123 no-gates"`: Claude Code asks before every write under `.claude/`, where guidelines and the record live, and headless outside auto mode nobody can answer, so the learn step saves nothing). Review, verification and their stop rules still apply; commits and PRs/MRs follow `conventions`. Scheduled or headless runs never resume a ticket in progress, blocked or in review, and leave finished task files in review.
+`gates.design` sets the default: `auto` (stop only for decisions needed), `always` or `never`. `no-gates` suits scheduled or headless runs (`claude -p --permission-mode auto "/singularity:feature ABC-123 no-gates"`: Claude Code asks before every write under `.claude/`, where guidelines and the record live, and headless outside auto mode nobody can answer, so the learn step saves nothing). With `auto`, a scheduled or headless run that hits decisions needed stops early and reports them. Review, verification and their stop rules always apply; commits and PRs/MRs follow `conventions`. Scheduled or headless runs resume only tickets whose work dir is in their checkout, and leave finished task files in review.
 
 #### Resume an interrupted run
 
@@ -207,7 +213,7 @@ Session died or run stopped on blockers -> rerun the command:
 /singularity:feature ABC-123
 ```
 
-Shows the ticket's status and last log or comment lines, and asks before resuming (another session may hold it). Yes -> continues in the existing work dir from the first stage `run.json` doesn't mark done, re-showing unapproved gates. `next` never resumes a task.
+Its work dir in this checkout and no live lock -> continues there from the first stage `run.json` doesn't mark done, showing the design gate if it is due and unapproved. No work dir here (someone else may be on it) -> shows the ticket's status and last log or comment lines, and asks first. `next` never resumes a task.
 
 The work dir is found by ticket ID: tickets and task files resume, prompt-started runs don't. Start multi-session work from a ticket or task file.
 
@@ -261,11 +267,11 @@ claude --agent singularity:optimizer
 No instruction -> it works out which job is due:
 
 - **Learn: after every run, and when you have corrected an agent.** `/singularity:feature`'s learn step: fixes guidelines behind defects and corrections, writes a run digest and eval cases, proposes larger changes for the next optimization.
-- **Onboard: once, and when the project or its goals change.** Started by `init-project`. Drafts `.claude/singularity/goals.md` for you to correct and confirm; surveys code, history, recent reviews; writes as guidelines only what agents can't quickly find out (exact commands, non-obvious conventions, risks, what not to touch), each where its reader looks (`CLAUDE.md`, guideline files, path-scoped rules, the "Do not touch" list), and no repository overview (overviews don't help agents; LLM-written context files can hurt: [research](docs/self-optimization.md#onboarding-context-before-optimization)); checks commands; proposes lenses, stages, role settings.
-- **Optimize: every ~10 runs, or when you ask.** Offered by `/singularity:feature` every `optimization.every_runs` runs (default 10); words after `optimize` set a focus. Runs the slow-loop cycle on past-run evidence; delivers validated changes as a draft PR/MR on a `singularity/optimize-<date>` branch.
+- **Onboard: once, and when the project or its goals change.** Started by `init-project`. Drafts `.claude/singularity/goals.md` for you to correct and confirm; surveys code, history, recent reviews; writes as guidelines only what agents can't quickly find out (exact commands, non-obvious conventions, risks, what not to touch), each where its reader looks (`CLAUDE.md`, guideline files, path-scoped rules, the "Do not touch" list), and no repository overview (overviews don't help agents; LLM-written context files can hurt: [research](docs/self-optimization.md#onboarding-context-before-optimization)); checks commands; selects library agents and skills; proposes lenses, stages, role settings.
+- **Optimize: every ~10 runs, or when you ask.** Started by `/singularity:feature`, in the background, every `optimization.every_runs` runs (default 10; `optimization.auto_start: false` only says it's due); words after `optimize` set a focus. Runs the slow-loop cycle on past-run evidence; delivers validated changes as a draft PR/MR on a `singularity/optimize-<date>` branch.
 - **Report upstream: when a failure's cause is in the shared plugin** (agent instructions, a default, a standard). A fix for one project can break another, so it never changes the plugin: it writes a report in `.claude/singularity/upstream/` (problem, evidence as counts and categories, exact fix and its validation, plus a local workaround if needed now; nothing project-identifying). After team approval in the PR/MR it offers to file an issue in the singularity repository, filing only on your yes. Projects send these reports, not experience; maintainers adopt them per [Adopting upstream reports](CONTRIBUTING.md#adopting-upstream-reports), reproducing each as a case in `plugins/singularity/evals/`.
 
-Choices (proposals to implement, reports to file) arrive as a **Decision needed** block; Claude shows it to you and relays your answer. A `claude --agent singularity:optimizer` session is the optimizer throughout: asks you directly, runs singularity's evidence and replay workflows itself.
+It decides what evidence settles: validated changes go into its draft PR/MR without asking. What evidence can't settle (goals, canaries, upstream filing) arrives as a **Decision needed** block; Claude shows it to you and relays your answer. A `claude --agent singularity:optimizer` session is the optimizer throughout: asks you directly, runs singularity's evidence and replay workflows itself.
 
 Scheduled: request it unattended in auto mode, e.g. `claude -p --permission-mode auto "Use the singularity:optimizer agent: optimize, unattended"` (outside auto mode, headless writes under `.claude/` are refused). Skips gates; implements context and curation changes, and behaviour changes whose replay passes within `optimization.max_eval_cost_usd`; leaves canary choice, goal confirmation and upstream filing to people. Nothing merges without a human. See [Guidelines and self-optimization](#guidelines-and-self-optimization).
 
@@ -276,6 +282,8 @@ Mostly `.claude/singularity.md` keys, read at session start: restart the session
 | To | Set, in the project |
 |---|---|
 | Change a role's model or effort | `roles.<role>.model`, `roles.<role>.effort` |
+| Choose when the pipeline stops for you | `gates.design` (`auto`, `always`, `never`) |
+| Add a library agent, or give an agent library or project skills | `stages`, `review.extra_reviewers` and `skills` (see [Select library agents and skills](#select-library-agents-and-skills)) |
 | Give the agents project knowledge | `CLAUDE.md`, `.claude/singularity/guidelines/*.md`, `.claude/rules/singularity/*.md` |
 | Keep agents away from some paths | the "Do not touch" section of `.claude/singularity.md` |
 | Add or drop review lenses | `review.lenses`, `review.extra_lenses` |
@@ -293,6 +301,23 @@ roles:
 ```
 
 Omitted roles keep their defaults ([Roles and models](#roles-and-models)); implement fix rounds run at high effort unless `roles.implement.effort` is set.
+
+#### Select library agents and skills
+
+Onboarding selects these from the [library](#agent-and-skill-library); change the selection here:
+
+```yaml
+stages:
+  before_spec: [singularity:researcher]
+  before_handoff: [singularity:qa-browser]
+skills:
+  implement: [singularity:zero-downtime-migrations]
+  review: [singularity:zero-downtime-migrations, singularity:accessibility]
+  qa-browser: [singularity:accessibility]
+  plan: [payments-rules]        # a project skill: .claude/skills/payments-rules/SKILL.md
+```
+
+`skills` keys are roles or agent names; each agent reads its skills before starting. A library skill costs context only in the agents given it.
 
 #### Give the agents project knowledge
 
@@ -337,7 +362,8 @@ Plugin hooks:
 
 | To turn off | Do this |
 |---|---|
-| The approval gates, for one run | Add `no-gates` to the command |
+| The design gate, for one run | Add `no-gates` to the command; for every run, `gates.design: never` |
+| Web research by the spec, plan and research agents | `autonomy.web_research: false` |
 | Learning after each run | `learning.enabled: false`. This also stops capturing corrections, learning from human reviews, and the run digests that optimizations and their reminder work from |
 | Capturing your corrections from prompts, interrupts and rejected tool calls | `learning.corrections: false` |
 | Tracing later fixes and reverts of pipeline changes | `learning.later_fixes: false` |
@@ -348,7 +374,7 @@ Plugin hooks:
 | Commits and PRs/MRs | Nothing to do: `conventions.auto_commit` and `auto_pr` are off by default |
 | A shared review lens | Remove it from `review.lenses` |
 | A project reviewer or stage | Remove it from `review.extra_reviewers` or from its `stages` list |
-| The optimizer | Nothing to do: it runs only when someone asks for it. `optimization.every_runs: 0` also stops the pipeline offering it |
+| The optimizer starting by itself | `optimization.auto_start: false` (the pipeline only says it's due); `optimization.every_runs: 0` stops that too |
 | The optimizer's web research | `optimization.web_scan: false` |
 | A project hook | Delete the script |
 | singularity, for yourself in one project | `claude plugin disable singularity@singularity --scope local`, which writes to your git-ignored `.claude/settings.local.json`. Pass `--scope local`: without it, the change can land in the committed `.claude/settings.json` |
@@ -358,13 +384,13 @@ Spec, plan, implement, checks, review, verify are the pipeline: not individually
 
 ### Creating custom roles and agents
 
-Roles are fixed: spec, plan, implement, review, verify, optimize (its learn job is the pipeline's learn step). Projects add their own agents (Markdown in `.claude/agents/`) at four points:
+Roles are fixed: spec, plan, implement, review, verify, optimize (its learn job is the pipeline's learn step). Check the [library](#agent-and-skill-library) first; projects add their own agents (Markdown in `.claude/agents/`) at four points:
 
 | Point | Config | When it runs | Example |
 |---|---|---|---|
 | Replace a role | `roles.<role>.agent` | instead of the shared agent | `custom-implementer.md.example` |
 | Add a reviewer | `review.extra_reviewers` | in the review stage, next to the lenses | `review-domain.md.example` |
-| Add a pipeline step | `stages.before_spec`, `after_plan`, `after_implement`, `before_handoff` | at that point in `/singularity:feature` | `qa-browser.md.example` |
+| Add a pipeline step | `stages.before_spec`, `after_plan`, `after_implement`, `before_handoff` | at that point in `/singularity:feature` | library agents `singularity:researcher`, `singularity:qa-browser` |
 | Add a workflow or command | `.claude/workflows/*.js`, `.claude/skills/<name>/SKILL.md` | when someone runs it | `dependency-upgrade.js.example` |
 
 Examples: [`plugins/singularity/templates/project/.claude/`](plugins/singularity/templates/project/.claude/); `init-project` copies them on request.
@@ -417,8 +443,8 @@ For instructions or tools the shared agent can't get from `CLAUDE.md` and the gu
 
 | Role | Gets | Must deliver |
 |---|---|---|
-| spec | the ticket, its kind (feature, defect or refactoring), an output path | a spec there, with numbered acceptance criteria and open questions |
-| plan | the spec path, an output path | a plan there, steps as checkboxes (`- [ ] 1. …`), which resuming relies on |
+| spec | the ticket, its kind (feature, defect or refactoring), an output path | a spec there, with numbered acceptance criteria, `Decisions` and `Decisions needed` |
+| plan | the spec path, an output path | a plan there, with `Decisions` and `Decisions needed`, and steps as checkboxes (`- [ ] 1. …`), which resuming relies on |
 | implement | spec and plan paths; in fix rounds, the findings or failures | code and tests on the current branch; finished steps ticked in the plan |
 | review | a lens, the base and the spec (task A), or one finding to challenge (task B) | findings with severity, location, problem, evidence and fix; or a verdict: confirmed, severity, reason |
 | verify | the spec path | a checks table with evidence, the Test Coverage and Verification Summary, then PASS or FAIL |
@@ -441,13 +467,13 @@ Runs only when listed. Gets the change's base and the spec; own model and effort
 
 ```yaml
 stages:
-  before_spec: [ux-researcher]           # research the spec role can't do (no web tools)
+  before_spec: [singularity:researcher]  # deeper research than the spec role's own
   after_plan: [threat-modeler]           # read-only checks of the plan
   after_implement: [migration-checker]   # runs before review, so its changes get reviewed
-  before_handoff: [qa-browser]           # after review and verification
+  before_handoff: [singularity:qa-browser]  # after review and verification
 ```
 
-Agents run in list order; each gets the work dir path (spec, plan, later `review.md`); `before_spec` agents get the ticket, and the spec role gets what they wrote. Every agent named in the config must exist when the session starts: the pipeline stops rather than run a stage as another agent. Browser QA as part of the definition of done: a `before_handoff` agent with a browser MCP server's tools (`qa-browser.md.example`); the shared verifier has none. Blocking problem -> you choose: fix and rerun the agent, continue anyway, or stop. Scheduled or headless: stop, as on remaining review blockers. `before_handoff` runs after review and verification, so its changes go unreviewed: notes and documents only, or read-only.
+Agents run in list order; each gets the work dir path (spec, plan, later `review.md`); `before_spec` agents get the ticket, and the spec role gets what they wrote. Every agent named in the config must exist when the session starts: the pipeline stops rather than run a stage as another agent. Browser QA as part of the definition of done: the library's `singularity:qa-browser`, with a browser MCP server and its setup in `guidelines/verify.md`; the shared verifier has no browser tools. Blocking problem -> the role whose work it concerns fixes it (the plan role after `after_plan`, an implement fix round later) and the agent reruns; still blocking after two rounds, the run stops. `before_handoff` runs after review and verification, so its changes go unreviewed: notes and documents only, or read-only.
 
 #### Add a workflow or a command
 
@@ -460,15 +486,28 @@ For a stage sequence `/singularity:feature` doesn't fit:
 
 Tell each custom agent its guidelines file: the replaced role's, or `project.md`. Extra reviewers' findings count like any: confirmed -> implement or plan guidelines; rejected -> review guidelines. The optimizer may propose evidence-backed changes to project agents too.
 
+## Agent and skill library
+
+Building blocks beyond the fixed roles, selected per project at onboarding and the main place to contribute: [`plugins/singularity/library/README.md`](plugins/singularity/library/README.md) catalogs each entry with where it attaches and the project signals that select it.
+
+| Entry | Kind | Attaches to | For |
+|---|---|---|---|
+| `singularity:researcher` | agent | `stages.before_spec` | specs resting on outside facts: third-party APIs, standards, fast-moving libraries |
+| `singularity:qa-browser` | agent | `stages.before_handoff` | trying each acceptance criterion in a browser |
+| `singularity:zero-downtime-migrations` | skill | plan, implement, review | migrations on a database serving traffic during deploys |
+| `singularity:accessibility` | skill | spec, implement, review, qa-browser | user-facing web UI, WCAG 2.2 AA |
+
+Library agents are shared agents (`agents/`); library skills are files agents read when a project's `skills` map gives them, so the library grows without costing context in projects that don't use an entry ([why](docs/pipeline-design.md#a-library-selected-per-project)). A project agent or skill right for any project goes upstream as a library candidate through the optimizer's [upstream reports](#the-optimizer-onboard-optimize-report-upstream).
+
 ## Roles and models
 
-Every code-facing role preloads the `engineering-standards` skill (definition of done, no hardcoding, dependency injection, red-green-refactor, test pyramid, boundary/failure-mode coverage, deterministic assertions, zero debt): one file, `skills/engineering-standards/SKILL.md`, enforced per stage; `docs/adopted-roles.md` maps each adopted guideline to its enforcement point.
+The spec, plan, implement and optimize roles also preload the `autonomy` skill: when to decide and record, when to ask. Every code-facing role preloads the `engineering-standards` skill (definition of done, no hardcoding, dependency injection, red-green-refactor, test pyramid, boundary/failure-mode coverage, deterministic assertions, zero debt): one file, `skills/engineering-standards/SKILL.md`, enforced per stage; `docs/adopted-roles.md` maps each adopted guideline to its enforcement point.
 
 Pipelines name **roles**, not agents.
 
 | Role | Default agent | Model · effort | Why |
 |---|---|---|---|
-| spec | `singularity:spec-writer` | opus · high | ambiguity costs the most when caught late |
+| spec | `singularity:spec-writer` | opus · high | ambiguity costs the most when caught late; settles what evidence can, with web research, and escalates only what the team must decide |
 | plan | `singularity:planner` | opus · high | a precise plan lets a fast model implement it |
 | implement | `singularity:implementer` | **sonnet · medium**, fix rounds high | fast; targeted tests per step, full suite once at the end; a high-effort retry of a failure costs less than a higher baseline |
 | review | `singularity:reviewer` | **fable · high** for the blocking lenses; sonnet · high for advisory ones | read-only, fresh context; correctness and security block, maintainability and testability advise; blocking findings challenged. First trial to replay: Opus 5.5 · high |
@@ -496,9 +535,9 @@ Tracker and code host are independent (Jira with GitLab MRs works); `tracker.sta
 
 ## Guidelines and self-optimization
 
-The [optimizer](#the-optimizer-onboard-optimize-report-upstream) drives self-improvement ([design and sources](docs/self-optimization.md)) towards `.claude/singularity/goals.md`. Working agents follow **guidelines** (how to work in the project now; [where they live](#give-the-agents-project-knowledge)). Also committed:
+The [optimizer](#the-optimizer-onboard-optimize-report-upstream) drives self-improvement ([design and sources](docs/self-optimization.md)) towards `.claude/singularity/goals.md`: moving its KPIs at the least lead time, tokens and user interventions, with quality as a constraint. Working agents follow **guidelines** (how to work in the project now; [where they live](#give-the-agents-project-knowledge)). Also committed:
 
-- `.claude/singularity/goals.md`: users, their value, current goals, trade-offs, constraints. Team-owned: the optimizer drafts it (`Status: draft`); once the team sets `Status: confirmed`, the optimizer only proposes changes and agents rely on it. Read by the optimizer, spec writer and planner.
+- `.claude/singularity/goals.md`: users, their value, current goals with their KPIs, trade-offs, constraints. Team-owned: the optimizer drafts it (`Status: draft`); once the team sets `Status: confirmed`, the optimizer only proposes changes and agents rely on it. Read by the optimizer, spec writer and planner.
 - `.claude/singularity/experience/`: the record; working agents don't read it.
   - `runs.jsonl`: a digest line per run and per human review, incl. guidelines added, changed or removed;
   - `optimizations.md`: the optimizer's archive;
@@ -510,7 +549,7 @@ The [optimizer](#the-optimizer-onboard-optimize-report-upstream) drives self-imp
 **Fast loop (the optimizer's learn job, every run, and whenever corrections are waiting).** Guidelines change on two signals only:
 
 - **defects whose root cause is a weak guideline:** confirmed review findings, rejected findings (reviewer false positives), failed checks and stop-gate blocks, verification failures, later commits fixing or reverting a run's lines, and, if enabled, human reviewers' comments and edits that fix a defect. Each defect that escaped review also becomes an eval case;
-- **your corrections:** hook-captured prompts saying an agent was wrong, what you type after an interrupt or a rejected tool call, your edits at the approval gates, and, if enabled, your edits before merge that apply a project convention.
+- **your corrections:** hook-captured prompts saying an agent was wrong, what you type after an interrupt or a rejected tool call, your edits and answers at the design gate (an answer that holds beyond the ticket becomes a guideline, so the question isn't asked again), and, if enabled, your edits before merge that apply a project convention.
 
 Reviewers cite the guideline a finding breaks, and the planner and implementer the guidelines that decided a choice. Citations point the root cause at a guideline; they never add one.
 
@@ -520,10 +559,10 @@ Before finishing, the guideline check (`scripts/check-guidelines.sh` in the plug
 
 **Slow loop (optimizer, every ~10 runs or on a schedule).** Fixed cycle:
 
-1. **Evidence:** quality and flow trends (lead time and its working/waiting split, rework, changes merged unedited, changes later fixed or reverted, findings people addressed, cost per run, costly stages catching little); effort across goals; failure taxonomy (fix in project or plugin); corrections by source; guideline audit (history instead of guidance, duplicates, check-enforceable guidelines, each guideline's use and failures); context audit (guidelines about vanished code); due contracts; eval coverage; web scan for new Claude Code features, models, research.
+1. **Evidence:** quality and flow trends (lead time and its working/waiting split, user interventions per run, rework, changes merged unedited, changes later fixed or reverted, findings people addressed, tokens and cost per run, costly stages catching little); KPIs against their targets and effort across goals; failure taxonomy (fix in project or plugin); corrections by source; guideline audit (history instead of guidance, duplicates, check-enforceable guidelines, each guideline's use and failures); context audit (guidelines about vanished code); due contracts; eval coverage; web scan for new Claude Code features, models, research.
 2. **Propose:** up to five changes to models, lenses, stages, project agents, guidelines, ranked by harm to the goals and their users; each a falsifiable contract (goal served, what it fixes, by how much, what it might break).
 3. **Challenge:** a reviewer tries to refute each.
-4. **Gate:** you choose what to implement.
+4. **Gate:** context changes and behaviour changes that pass replay go ahead; you choose only among canaries (changes no replay can validate).
 5. **Implement:** one commit per change.
 6. **Validate:** replayed eval cases or a canary; adopted only with no regressions, held-out cases included. Review guidelines the learn jobs added are replayed with and without them, and rewritten or removed if they don't help.
 7. **Deliver:** archive entry and draft PR/MR.
@@ -538,15 +577,16 @@ Before finishing, the guideline check (`scripts/check-guidelines.sh` in the plug
 .claude-plugin/marketplace.json
 plugins/singularity/
   .claude-plugin/plugin.json
-  agents/          spec-writer, planner, implementer, reviewer, verifier, optimizer
+  agents/          spec-writer, planner, implementer, reviewer, verifier, optimizer; library agents researcher, qa-browser
   optimizer/       the optimizer's playbooks: learn, onboard, optimize, upstream
-  skills/          feature, init-project, tracker (+ jira/github/gitlab/files), engineering-standards
+  skills/          feature, init-project, tracker (+ jira/github/gitlab/files), engineering-standards, autonomy
+  library/         the agent and skill library: catalog (README.md) and library skills
   workflows/       optimize-scan.js, replay-evals.js: the optimizer's evidence and replays
   evals/           regression suite for the shared plugin (claude plugin eval)
   hooks/ scripts/  guardrails, project hook extension points, correction capture, the guideline check, outcomes after hand-off
   templates/       project files for init-project, Jira MCP config
 docs/                     design notes, adopted role prompts and where each clause lives
-scripts/                  release.sh and version.js (versions and releases), check-evals.js, check-sensitive.sh
+scripts/                  release.sh and version.js (versions and releases), check-evals.js, check-library.js, check-sensitive.sh
 CHANGELOG.md              what changed in each release
 ```
 

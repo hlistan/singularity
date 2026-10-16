@@ -1,6 +1,6 @@
 # Learn: turn defects and corrections into current guidelines
 
-Runs after every `/singularity:feature` run and on queued user corrections; each run also checks later commits for fixes and reverts of earlier runs' lines. **Guidelines change for two reasons only: a defect whose root cause is a weak guideline, and a user correction.** Guidelines state only the current right way; what happened and why goes into the run digest. No agent, config or protocol changes (optimizations make those), no web research, no subagents: cheap enough for every run. Curate strictly: every guideline costs each session that loads it.
+Runs after every `/singularity:feature` run and on queued user corrections; each run also checks later commits for fixes and reverts of earlier runs' lines. **Guidelines change for two reasons only: a defect whose root cause is a weak guideline, and a user correction (the user's answers at the design gate included).** Guidelines state only the current right way; what happened and why goes into the run digest. No agent, config or protocol changes (optimizations make those), no web research, no subagents: cheap enough for every run. Curate strictly: every guideline costs each session that loads it.
 
 Drift from what users need (`goals.md`), e.g. a spec missing a team constraint -> guideline for the role that drifted.
 
@@ -30,7 +30,7 @@ Lesson files from before 0.5.0 still in `<learning.dir>` (`project.md`, `spec.md
 | Signal | In the run | After the run |
 |---|---|---|
 | **Defect**: an agent's error found by a check, reviewer, later commit or person | confirmed review findings (spec writer, planner or implementer at fault); rejected findings (reviewer at fault); failed checks and stop-gate blocks (implementer at fault); verification failures | later fixes and reverts of the run's lines (**Later fixes and reverts**); human PR/MR review comments, and people's edits before merge that fix a defect (**Human reviews**; `learning.pr_reviews`) |
-| **User correction**: the user told or showed an agent it was wrong | the correction queue (`corrections.sh list`); gate edits (`spec.draft.md` vs `spec.md`, `plan.draft.md` vs `plan.md`) | people's edits before merge that apply a project convention (**Human reviews**) |
+| **User correction**: the user told or showed an agent it was wrong, or settled a decision it couldn't | the correction queue (`corrections.sh list`); gate edits (`spec.draft.md` vs `spec.md`, `plan.draft.md` vs `plan.md`); answers at the design gate (`decisions` in the run record): an answer other than the agents' recommendation corrects them, and an answer that holds beyond the ticket is a standing rule (**User corrections**, step 3), so the question never reaches the team again | people's edits before merge that apply a project convention (**Human reviews**) |
 
 A third trigger, not learning: **the run's own change**. Code it renamed, moved, removed or replaced (`git diff <base>` plus `git status` for new files; base from the run record, else the merge base with `conventions.default_branch`) -> correct or remove every guideline describing it.
 
@@ -124,7 +124,9 @@ After a pipeline run, from its run record:
  "lead_s":5400,"active_s":1225,"fix_rounds":1,
  "models":{"implement":"sonnet","review":"fable"},
  "stages":{"spec":{"s":95,"tokens":31000},"plan":{"s":140},"implement":{"s":610,"tokens":220000},"review":{"s":300},"verify":{"s":80}},
- "gate_edits":{"spec":false,"plan":true},"gate_edit_kinds":["missing rollback step"],"gate_wait_s":{"spec":420,"plan":95},
+ "gate_edits":{"spec":false,"plan":true},"gate_edit_kinds":["missing rollback step"],"gate_wait_s":{"design":420},
+ "interventions":[{"stage":"design","kind":"gate","reason":"1 decision needed: data retention"}],
+ "decisions":{"spec":4,"plan":6,"implement":1,"needed":[{"topic":"data retention","recommended":"30 days","answer":"90 days"}],"researched":["login rate limits"]},
  "review_rounds":1,"verify_first_pass":false,"applied":{"plan":["G3"],"implement":["G3","G8"]},
  "findings":[{"lens":"security","severity":"blocking","category":"missing authz check","stage":"plan","path":"src/api/orders.ts","confirmed":true,"cause":"guideline-missing","action":"pending"}],
  "defects":[{"source":"verify","role":"implement","category":"irreversible migration","path":"db/migrations/0042.sql","cause":"guideline-ignored","action":"check-proposed","covered_by":"G8","cites":"G8"}],
@@ -137,6 +139,8 @@ After a pipeline run, from its run record:
 | `branch`, `change` | branch and PR/MR (if opened), so a later run finds it |
 | `kind`, `goal` | feature, defect or refactoring; the `goals.md` goal the spec says the work serves, or `maintenance` |
 | `lead_s`, `active_s`, `gate_wait_s`, `fix_rounds` | from `run-record.sh times` (the run's `clock.log`), else the run record; never estimated or computed by hand: start to hand-off; stage working time; wait per gate; fix rounds. `times` exits 1 (stamps out of order or unmatched) -> leave out the times it names, and add the problem to `deviations` |
+| `interventions` | each stop for a person, from the run record: stage, kind (`gate`, `question` or `stop`), reason; optimizations count them per run |
+| `decisions` | per role, the count of decisions the agents took; `needed`: each decision needed, with the recommendation and the user's answer; `researched`: the topics web research settled, so optimizations see a topic researched again |
 | `stopped`, `resumed` | a run stopped early gets a digest too (`stopped`, the reason); resumed, another when it ends (`resumed: true`) |
 | `applied` | per role, the guideline ids it reported deciding a choice (run record) |
 | `findings` | confirmed **and** rejected findings (`confirmed:false`: reviewer at fault): a short reusable `category`, the stage at fault, the file `path`, `cause`, `action` (`added`, `changed`, `removed`, `moved`, `check-proposed`, `pending` or `recorded`) |

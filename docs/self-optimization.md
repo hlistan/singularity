@@ -21,7 +21,8 @@ Research and engineering practice as of October 2026.
 
 ## Optimizing towards what the project is for
 
-- Faster and cleaner can mean less user value → the optimizer works from `.claude/singularity/goals.md`: users, their value, the team's goals and how it will know, trade-offs, constraints.
+- Faster and cleaner can mean less user value → the optimizer works from `.claude/singularity/goals.md`: users, their value, the team's goals and their KPIs (measured by, current, target, by when), trade-offs, constraints.
+- **The objective**: move the KPIs at the least lead time, tokens and user interventions (each stop for a person: a question, a gate stop, an early stop). Quality (escaped defects, later fixes) is a constraint, never traded for speed or cost.
 - Team-owned: drafted at onboarding from the team's writing (README, roadmap, tickets, release notes), confirmed at the gate; afterwards the optimizer only proposes changes.
 - Spec writer names each work item's goal; planner follows the trade-off order; every proposal names its goal.
 
@@ -82,7 +83,7 @@ Since 0.5.0 the learn job keeps **guidelines** (how to work in the project now),
 | Defect | review comments and edits before merge that fix a defect | `learning.pr_reviews`; `outcomes.sh edits` | person: at once |
 | Correction | prompts that read like a correction | `UserPromptSubmit` hook, phrase filter | person: at once if explicit |
 | Correction | what the user types after an interrupt or a rejected tool call | `UserPromptSubmit` and `Stop` hooks, prompt ids, session transcript | person if it says what was wrong; implicit (only a rephrased request): on recurrence |
-| Correction | gate edits; edits before merge that apply a project convention | spec and plan drafts; `outcomes.sh edits` | person: at once |
+| Correction | design-gate edits and answers (an answer that holds beyond the ticket is a standing rule); edits before merge that apply a project convention | spec and plan drafts; `decisions` in the run record; `outcomes.sh edits` | person: at once |
 
 Citations point at a guideline and never add one: reviewers cite the guideline a finding breaks, the planner and implementer the guidelines that decided a choice.
 
@@ -151,7 +152,7 @@ Citations point at a guideline and never add one: reviewers cite the guideline a
 evidence (optimize-scan: quality and flow metrics · failures · value against the goals · corrections · guidelines · context · contracts · evals · practice scan)
    → propose (≤5 proposals ranked by harm to the goals, each with a contract, and upstream reports for causes in the plugin)
    → challenge (reviewer Task C: overfitting? metric gaming? less oversight? tried before? really the plugin's?)
-   → gate (human picks; tier 3 is recommendation only)
+   → gate (evidence decides: tier 1 and replay-validated tier 2 go ahead; a human picks canaries; tier 3 is recommendation only)
    → implement (one commit per proposal on singularity/optimize-<date>)
    → validate (replay-evals | canary)
    → archive (optimizations.md) → draft PR/MR
@@ -178,10 +179,13 @@ evidence (optimize-scan: quality and flow metrics · failures · value against t
 | Seconds and tokens per stage | run digests | all quality metrics |
 | Lead time, flow efficiency (working over waiting) | `lead_s`, `active_s`, `gate_wait_s` in run digests | escaped defects, `fixes` (later runs fixing a pipeline change), gate edit rate: going faster must not mean checking less |
 | Gate wait | `gate_wait_s` | gate edit rate and escaped defects: a gate that is quick to approve but often edited is doing its job |
+| User interventions per run | `interventions` in run digests | escaped defects, later fixes and gate edit rate: fewer stops must not mean wrong decisions taken silently; the hand-off report lists every decision taken |
+| Decisions researched again | `decisions.researched` across run digests | none: a repeated topic becomes a guideline |
 | Change-failure share | `fixes` in later run digests, `later_fix` lines with `"defect":true` | none for gaming; read it with escaped defects |
 | Changes merged unedited | `unmodified` in `human_review` lines | escaped defects, later fixes |
 | Open findings addressed, per lens | `addressed` in `human_review` lines | recall cases, escaped defects: fewer findings must not mean fewer catches |
-| Work mix across the goals | `kind` and `goal` in run digests | the team's review of the goal labels at the spec gate |
+| Work mix across the goals | `kind` and `goal` in run digests | the team's review of the goal labels in the hand-off report |
+| KPI progress | the KPI table in `goals.md`, read by the evidence scan | the team owns targets and definitions (tier 3) |
 
 ## Change tiers
 
