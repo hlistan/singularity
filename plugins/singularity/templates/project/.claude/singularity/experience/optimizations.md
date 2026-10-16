@@ -1,10 +1,10 @@
 # Workflow optimizations
 
 The optimizer's archive: every change it proposed, how it was validated, and
-what happened. **Rejected and reverted entries stay here** so that ideas which
-didn't work aren't retried without new evidence. Only the singularity
-optimizer writes this file, and it wraps lines at 80 columns. Onboarding is
-one entry, `O-<date>-onboard`, listing the context it wrote.
+what happened. **Rejected and reverted entries stay here**, so failed ideas
+aren't retried without new evidence. Only the singularity optimizer writes
+this file, wrapped at 80 columns. Onboarding is one entry, `O-<date>-onboard`,
+listing the context it wrote.
 
 Entry format:
 

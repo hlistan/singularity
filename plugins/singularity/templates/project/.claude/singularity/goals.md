@@ -2,13 +2,12 @@
 
 Status: draft
 
-Who this project serves and what it is for, so that the agents work towards
-what matters here: the spec writer and planner read it, and the singularity
-optimizer tunes the whole workflow towards it. The team owns this file. The
-optimizer drafts it at onboarding; once the team has checked it, change the
-status above to `confirmed <date>`. After that the optimizer only proposes
-changes, and a person makes them. Keep it under about 40 lines: it says what
-matters, not how the code works.
+Who this project serves and what it is for. Read by the spec writer and
+planner; the singularity optimizer tunes the workflow towards it. The team owns
+it: the optimizer drafts it at onboarding; once the team has checked it, set
+the status above to `confirmed <date>`. After that the optimizer only proposes
+changes; a person makes them. Under about 40 lines: what matters, not how the
+code works.
 
 ## Users and the value they get
 

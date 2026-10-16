@@ -4,7 +4,7 @@
 # Exit 1 on any finding. Add legitimate examples to the allowlist below, not to the code.
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
-if [ $# -gt 0 ]; then files=("$@"); else mapfile -t files < <(git ls-files); fi
+if [ $# -gt 0 ]; then files=("$@"); else files=(); while IFS= read -r f; do files+=("$f"); done < <(git ls-files); fi
 [ ${#files[@]} -eq 0 ] && exit 0
 
 ALLOWED_EMAILS='noreply@anthropic\.com|@example\.com|@users\.noreply\.github\.com|^[0-9]+:git@'

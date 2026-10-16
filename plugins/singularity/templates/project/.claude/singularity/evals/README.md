@@ -1,9 +1,9 @@
 # Project eval cases
 
 Regression cases built from **real** failures on this project. The optimizer
-creates them from escaped defects: what human reviewers caught in a PR/MR
-that the agents missed. The optimizer replays them to prove that a change to
-the workflow helps and breaks nothing (`replay-evals` workflow).
+creates them from escaped defects (what human reviewers caught in a PR/MR
+that the agents missed) and replays them (`replay-evals` workflow) to prove
+that a workflow change helps and breaks nothing.
 
 One directory per case:
 
@@ -30,4 +30,4 @@ source: "!123 human review, 2026-10-14"
 ```
 
 Rules: cases are only ever added. Editing or deleting one is a human decision
-(tier 3), because these cases are what measures the agents.
+(tier 3): these cases measure the agents.

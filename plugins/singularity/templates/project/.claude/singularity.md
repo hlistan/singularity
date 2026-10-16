@@ -1,10 +1,10 @@
 # singularity project config
 
-Read by the shared singularity agents and pipelines, and imported into every
-session through CLAUDE.md, so keep it short.
+Read by the shared singularity agents and pipelines and imported into every
+session through CLAUDE.md: keep it short.
 
-**Only write overrides.** Anything you leave out uses the shared default from
-the singularity repo, so improvements there keep reaching this project.
+**Only write overrides.** Anything left out uses the shared singularity
+default, so improvements there keep reaching this project.
 
 ```yaml
 commands:
@@ -92,13 +92,15 @@ stages:                     # project agents inserted into the shared pipeline
   before_handoff: []
 
 # Guidelines change only for defects caused by a weak guideline, and for
-# user corrections, which a hook captures from prompts.
+# user corrections: prompts, interrupts and rejected tool calls (hooks),
+# gate edits, and people's edits before merge.
 learning:
   enabled: true
   dir: .claude/singularity/experience   # the record: run digests, archive
   max_lines_per_file: 60    # guidelines per file; a wrapped one counts once
   corrections: true         # false: don't capture corrections from prompts
-  pr_reviews: false         # true: learn from human PR/MR review comments
+  later_fixes: true         # false: don't trace later fixes and reverts
+  pr_reviews: false         # true: learn from PR/MR comments and edits
 
 optimization:
   # Offer an optimizer run after this many pipeline runs; 0: never.
