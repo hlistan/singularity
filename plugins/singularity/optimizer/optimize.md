@@ -19,14 +19,14 @@ Subagent: do what `<plugin root>/workflows/optimize-scan.js` does: one read-only
 
 Guideline audit reports lesson files from before 0.5.0 -> migrate them (`onboard.md`, "Migrating lessons"), then re-gather the evidence.
 
-Save the result as `evidence.json`, and a digest as `evidence.md` opening with a **health dashboard**, each metric with its trend: **quality** (escaped defects, blocking findings, first-pass verification, stop-gate blocks, changes merged without human edits, changes later fixed or reverted, open findings people addressed per lens), **flow** (lead time, share working vs waiting, rework, stopped runs, cost per run), **value** (effort split across goals, defects and maintenance; where quality problems hit what users rely on). Name failed streams; don't fill their gaps by guessing.
+Save the result as `evidence.json`, and a digest as `evidence.md` opening with a **health dashboard**, each metric with its trend: **quality** (escaped defects, blocking findings, first-pass verification, stop-gate blocks, changes merged without human edits, changes later fixed or reverted, open findings people addressed per lens), **flow** (lead time, share working vs waiting, rework, stopped runs, tokens and cost per run, **user interventions** per run by kind and stage), **value** (each KPI in `goals.md` against its target: current reading where its "measured by" is a read-only command or file, else the team's last recorded value; effort split across goals, defects and maintenance; where quality problems hit what users rely on). Name failed streams; don't fill their gaps by guessing.
 
 ## 2. Propose
 
 Read the goals, evidence pack, `optimizations.md`, config, the context files and project agents the evidence points at, and the plugin files (`<plugin root>`) behind plugin-side failures.
 
 1. Due contracts: recommend keep, extend or revert, with numbers.
-2. Write `proposals.md`: at most 5 project changes, ranked by harm to the goals and their users, times frequency (agent definition, principle 2). Count flow waste too: waiting at gates or for human review, rework loops, costly stages that catch little here, process heavier than the work needs, effort serving no goal. Each gives:
+2. Write `proposals.md`: at most 5 project changes, ranked by harm to the goals and their users, times frequency (agent definition, principle 2). Count flow waste too: waiting at gates or for human review, rework loops, costly stages that catch little here, process heavier than the work needs, effort serving no goal. **Interventions**: the same kind of decision reaching the team in several runs (`interventions`, `decisions` in run lines) with consistent answers -> a guideline settling it (tier 1); a gate stop research could have settled -> fix the role or skill that escalated it; the same topic researched again across runs -> a guideline recording the answer (tier 1), so later runs read it instead of searching. Each gives:
    - id (`O-<date>-<n>`), title, tier, goal served;
    - the contract fields; a diff sketch (file and exact lines);
    - the validation plan, with an eval cost estimate.
@@ -45,9 +45,7 @@ Each tier-2 proposal and upstream report, with its cited evidence -> `singularit
 
 ## 4. Gate
 
-Show the user a compact table (id, tier, change, predicted effect, validation and its estimated cost, challenger verdict), plus due contracts, new upstream reports and approved ones awaiting filing (`upstream.md`, "Deliver and file"). Ask which to implement. Tier 3: recommendations only; a human makes them.
-
-Unattended: implement all tier-1 proposals and tier-2 ones whose replay passes within `max_eval_cost_usd`. Canaries stay recommendations (a person chooses them). Never tier 3.
+Evidence decides; the draft PR/MR is where the team reviews (the `autonomy` skill). Implement every tier-1 proposal and every tier-2 one whose replay passes within `max_eval_cost_usd`, without asking. What evidence can't settle goes to a person, all at once: **canaries** (behaviour changes no replay can validate) and **tier 3** recommendations. Session with a person: show those in a compact table (id, tier, change, predicted effect, validation and its estimated cost, challenger verdict), plus due contracts and upstream reports awaiting filing (`upstream.md`, "Deliver and file"), and ask which canaries to start. Subagent or unattended: list them in `proposals.md` and the PR/MR for a person to choose; start none. Never tier 3.
 
 ## 5. Implement
 
@@ -62,7 +60,7 @@ Follow each proposal's validation plan:
   - Two variants, `baseline` (current config) and `candidate` (proposed config), **both** given their full lens list and reviewer binding: only the proposed change differs.
   - `trials` of at least 3 per variant: the reviewer isn't deterministic; one trial can't tell a change from chance.
   - Session: the `singularity:replay-evals` workflow. Subagent: do what `<plugin root>/workflows/replay-evals.js` does: per variant, case, lens and trial, the variant's reviewer in its own worktree (`isolation: "worktree"`, or a `git worktree add --detach` under the run directory, removed afterwards) with the same setup and Task A prompt; a `sonnet` judge at `low` effort with the same judging prompt; the workflow's scoring.
-  - Report non-holdout and holdout results separately. Unless unattended, tell the user the estimated cost first.
+  - Report non-holdout and holdout results separately, with the estimated and actual cost; replays beyond `max_eval_cost_usd` need the user's yes.
 - **Not replayable** (spec, plan or implement behaviour, a project stage, the implementer's model) -> **canary**: record baseline metrics and the check-after point. Judge it by whether its targeted defects and corrections stopped and anything clearly got worse (ten runs show breakage, not small gains).
 
 - **Guideline admission** (review guidelines): guidelines in `review.md`, or rules the reviewers load, that learn jobs added since the last optimization for a defect that has an eval case -> replay that case and the non-holdout cases with and without the guideline (two variants, same trials). Not better on its own case, or worse on another -> tier-1 proposal to rewrite or remove it. Counts toward `max_eval_cost_usd`.

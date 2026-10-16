@@ -14,7 +14,8 @@ Upstream causes (the same fix would be right in any project):
 - a bug in a workflow, script or hook;
 - a Claude Code feature or model the plugin should use (practice scan);
 - an `experience/upstream.md` candidate not specific to this project, with evidence from at least two runs;
-- a problem the user reports with singularity itself: their account is evidence; find the cause in the plugin.
+- a problem the user reports with singularity itself: their account is evidence; find the cause in the plugin;
+- a **library candidate**: a project agent or skill right for any project that shows the same signal, with evidence it helped here (defects or interventions it removed). The proposed fix is the entry itself, made generic (project facts back in the project's guidelines), and its catalog row (`<plugin root>/library/README.md`, "Contributing an entry").
 
 Fix right only for this project's stack or domain -> project change (`optimize.md`).
 

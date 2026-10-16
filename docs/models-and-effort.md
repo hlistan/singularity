@@ -64,7 +64,7 @@ Rule of thumb: nothing checks the output -> effort buys depth; tests, exit codes
 - **Ambig-SWE:** clarifying questions improved underspecified tasks by up to 74%, but models struggle to spot them.
 - **Claude Code:** `high` for work "where verification matters or edge cases are likely".
 - **Not Fable:** a short task, and Opus 5.5 "performs at the level of Claude Fable 5.1 on most work".
-- **Deviate:** mostly trivial tickets: trial `opus · medium`, watch the spec gate-edit rate.
+- **Deviate:** mostly trivial tickets: trial `opus · medium`, watch the spec edit rate at the design gate.
 
 ### plan · opus · high
 
@@ -191,6 +191,8 @@ The run digest records each role's model for before/after comparison.
 |---|---|---|
 | `android-implementer`, bound to implement | sonnet · medium | well-specified plan, tests check it; fix rounds get high from the pipeline |
 | `review-domain`, an extra reviewer for domain rules | opus · high | no mechanical check; a miss escapes |
+| library `researcher`, a `before_spec` stage | sonnet · high | fact-finding from cited sources; the spec writer and the design gate check what it found |
+| library `qa-browser`, a `before_handoff` stage | sonnet · high | many browser steps; screenshots are the evidence |
 | security reviewer for a payments or auth service | opus · high, or fable · high if replay-evals show it catches more | read-only bug finding, costly misses; compare both with replay-evals |
 | `after_implement` stage running a contract-test suite and reporting | sonnet · medium, or haiku · medium if it only reports exit codes | mechanical; exit codes check it |
 | `before_handoff` stage writing release notes from the diff and spec | sonnet · low | short; a human reads it in the PR/MR |

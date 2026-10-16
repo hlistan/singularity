@@ -3,7 +3,8 @@
 Status: draft
 
 Who this project serves and what it is for. Read by the spec writer and
-planner; the singularity optimizer tunes the workflow towards it. The team owns
+planner; the singularity optimizer tunes the workflow to move the KPIs below
+at the least time, cost and interruption. The team owns
 it: the optimizer drafts it at onboarding; once the team has checked it, set
 the status above to `confirmed <date>`. After that the optimizer only proposes
 changes; a person makes them. Under about 40 lines: what matters, not how the
@@ -15,8 +16,14 @@ TODO: who uses the project, and what it does for them.
 
 ## Goals now
 
-TODO: what the team is working towards, and how it knows it is getting
-there: a metric, a date or a quality bar.
+TODO: what the team is working towards.
+
+| KPI  | Measured by | Current | Target | By   |
+| ---- | ----------- | ------- | ------ | ---- |
+| TODO | TODO        | TODO    | TODO   | TODO |
+
+Measured by: a command, query or dashboard anyone can repeat. A quality bar
+or a date is a KPI too.
 
 ## Trade-offs
 

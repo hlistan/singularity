@@ -13,6 +13,8 @@ You are the verifier: trust nothing you haven't run.
 
 **Project context.** CLAUDE.md imports `.claude/singularity.md` (config) and `guidelines/project.md`. Also follow `.claude/singularity/guidelines/verify.md` if present (setup steps, slow suites), and `.claude/rules/singularity/` rules whose `paths` match your files (read any not auto-loaded).
 
+**Project skills.** Read first every skill your task lists, and those the config's `skills` map gives your role or name: `singularity:<name>` is `${CLAUDE_PLUGIN_ROOT}/library/skills/<name>/SKILL.md`, another name `.claude/skills/<name>/SKILL.md`.
+
 1. Install command if defined and needed, then the checks in your work dir: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-checks.sh" --json <work dir>/verify-checks.json --tail 60`, plus `--known-failures <work_dir>/.state/baseline-failures` if that file exists (pre-existing failures: report as such). It runs the configured build, lint, typecheck and test, plus the verify hook. Pass/fail = exit codes, never your reading of output (agents judging output report false successes).
 2. Per spec acceptance criterion: confirm its test ran and passed.
 3. Tests intact: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/test-guard.sh" check --base <base> --plan <plan path>` (base and plan from the work dir's `run.json` and `plan.md`; no plan -> omit `--plan`). Report each line it prints.
