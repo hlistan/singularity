@@ -49,7 +49,7 @@ jobs:
           severity: warning
 
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v24
+        uses: DavidAnson/markdownlint-cli2-action@v25
         with:
           # Templates are linted with markdownlint's defaults (plugins/singularity/templates/.markdownlint-cli2.yaml),
           # including the agent examples that projects rename to .md.
